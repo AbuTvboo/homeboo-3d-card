@@ -1,0 +1,8 @@
+{
+  "name": "homeboo-3d-card",
+  "version": "0.1.0",
+  "description": "Your home as an interactive 3D model in Home Assistant, with a built-in floor plan editor.",
+  "type": "module",
+  "scripts": { "build": "node scripts/build.mjs", "check": "node --check dist/homeboo-3d-card.js" },
+  "license": "MIT"
+}
