@@ -43,6 +43,7 @@ const HB_OFF = new Set(['off', 'unavailable', 'unknown', 'standby', 'idle', 'clo
 const HB_BASE_CSS = `
 :host{display:block;--hb-bg:#080a13;--hb-glass:rgba(15,19,35,.74);--hb-glass2:rgba(17,21,39,.92);--hb-line:rgba(150,172,255,.14);--hb-line2:rgba(150,172,255,.28);--hb-fg:#e8ecff;--hb-muted:#9097ba;--hb-faint:#5d648a;--hb-accent:#7ef0ff;--hb-accent-ink:#04171c;--hb-accent-soft:rgba(126,240,255,.12);--hb-lamp:#ffc98a;--hb-ok:#74e3a8;--hb-warn:#ffb25c;--hb-font:var(--ha-font-family-body,var(--paper-font-body1_-_font-family,"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif));--hb-mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--hb-accent);outline-offset:2px}
 `;
@@ -299,7 +300,7 @@ class HBViewer {
     if (!force && sig === this.buildSig) return;
     this.buildSig = sig; this.bo = bo;
     this.sc.build(this.plan, bo);
-    if (!this.placed) { this.placed = true; const r = this.sc.reg(); this.sc.jumpTo(null, this.fit(r.radius * 0.9) * 1.6, 0.3, -0.5); this.viewOverview(2.2); }
+    if (!this.placed) { this.placed = true; const r = this.sc.reg(); this.sc.jumpTo(null, Math.min(this.sc.orbit.maxR, this.overviewDist(0.3, -0.5) * 1.5), 0.3, -0.5); this.viewOverview(2.2); }
     this.applyStates(); this.applyNight(); this.applyWalls();
   }
   applyStates() {
@@ -355,14 +356,18 @@ class HBViewer {
     const ar = this.el.hb.getBoundingClientRect(), W = ar.width, H = ar.height; if (!W || !H) return;
     const narrow = W < 720; this.el.hb.classList.toggle('narrow', narrow);
     const pr = this.el.panel.getBoundingClientRect(), tr = this.el.top.getBoundingClientRect(), topB = tr.bottom - ar.top;
-    let ox = 0, oy = 0, aw = W, ah = H;
-    if (!narrow) { const right = pr.right - ar.left; ox = -right / 2; aw = W - right; oy = -topB / 2; ah = H - topB; }
-    else { const bottom = pr.top - ar.top; oy = H / 2 - (topB + bottom) / 2; ah = Math.max(120, bottom - topB); }
-    this.view = { aw, ah, H, W };
+    let ox = 0, oy = 0, aw = W, ah = H, rect;
+    if (!narrow) { const right = pr.right - ar.left; ox = -right / 2; aw = W - right; oy = -topB / 2; ah = H - topB; rect = { x0: right, x1: W, y0: topB, y1: H }; }
+    else { const bottom = pr.top - ar.top; oy = H / 2 - (topB + bottom) / 2; ah = Math.max(120, bottom - topB); rect = { x0: 0, x1: W, y0: topB, y1: topB + ah }; }
+    this.view = { aw, ah, H, W, rect };
     this.sc.resize(W, H, ox, oy);
+    // Größe hat sich geändert (z. B. Home Assistant ordnet das Dashboard neu an): Übersicht neu einpassen
+    const lf = this.lastFit;
+    if (this.placed && !this.focus && lf && (Math.abs(lf[0] - aw) > 30 || Math.abs(lf[1] - ah) > 30) && performance.now() - (this.sc.lastUser?.() || 0) > 4000) this.viewOverview(this.sc.isFlying() ? 1.4 : 0.6);
   }
   fit(r) { const v = this.view || { aw: 800, ah: 500, H: 600 }; return this.sc.fitDistance(r, v.aw, v.ah, v.H); }
-  viewOverview(dur) { const reg = this.sc?.reg(); if (!reg) return; this.sc.flyTo(null, this.fit(reg.radius * 0.82), 0.78, 0.3, dur); }
+  overviewDist(phi, theta) { const reg = this.sc.reg(); return this.sc.fitView?.(phi, theta, this.view?.rect) || this.fit(reg.radius * 0.82); }
+  viewOverview(dur) { const reg = this.sc?.reg(); if (!reg) return; this.lastFit = [this.view?.aw || 0, this.view?.ah || 0]; this.sc.flyTo(null, this.overviewDist(0.78, 0.3), 0.78, 0.3, dur); }
   viewRoom(id, dur) { const info = this.sc?.reg()?.rooms.get(id); if (!info) return; this.sc.flyTo(info.center, Math.max(4.6, this.fit(Math.max(1.9, info.radius * 1.12))), this.wallsLow() ? 0.66 : 0.5, null, dur); }
   go(id) {
     if (id === this.focus && id) return;

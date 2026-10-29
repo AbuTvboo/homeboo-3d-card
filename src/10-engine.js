@@ -1,5 +1,5 @@
 /*! HomeBoo 3D Card | MIT License */
-const HB_VERSION = '0.1.0';
+const HB_VERSION = '0.1.1';
 const HB_THREE_DEFAULT = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const hbThreeCache = new Map();
 function hbLoadThree(url) {

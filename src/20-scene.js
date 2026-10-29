@@ -273,6 +273,8 @@ function hbMakeScene(THREE, canvas) {
     const all = plan.rooms.flatMap(r => r.pts);
     if (!all.length) return reg;
     const b = bbox(all); ctr = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; reg.bbox = b; reg.center = ctr.slice(); reg.radius = Math.hypot(b.x1 - b.x0, b.y1 - b.y0) / 2;
+    const fitH = plan.wallHeight || 2.55;
+    reg.fitPts = all.flatMap(p => [new THREE.Vector3(p[0] - ctr[0], 0, p[1] - ctr[1]), new THREE.Vector3(p[0] - ctr[0], fitH, p[1] - ctr[1])]);
     seed = 11;
     const shadowR = Math.max(10, reg.radius + 3); Object.assign(sun.shadow.camera, { left: -shadowR, right: shadowR, top: shadowR, bottom: -shadowR }); sun.shadow.camera.updateProjectionMatrix();
     halo.scale.setScalar(Math.max(0.6, reg.radius / 9));
@@ -371,7 +373,8 @@ function hbMakeScene(THREE, canvas) {
     } else orbitStep();
     renderer.render(scene, camera);
   }
-  orbit.onUser = () => { tween = null; };
+  let userAt = 0;
+  orbit.onUser = () => { tween = null; userAt = performance.now(); };
   function flyTo(xy, radius, phi, theta, dur = 1.4) {
     const toT = new THREE.Vector3(...(xy ? [xy[0] - ctr[0], 0.35, xy[1] - ctr[1]] : [0, 0, 0]));
     const fromS = orbit.sph.clone(); if (theta == null) theta = fromS.theta;
@@ -389,6 +392,25 @@ function hbMakeScene(THREE, canvas) {
   }
   function project(x, y, h = 0.2) { tmp.set(x - ctr[0], h, y - ctr[1]).project(camera); return { x: (tmp.x + 1) / 2 * canvas.clientWidth, y: (1 - tmp.y) / 2 * canvas.clientHeight, vis: tmp.z < 1 }; }
   function resize(w, h, ox = 0, oy = 0) { if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.setViewOffset(w, h, ox, oy, w, h); camera.updateProjectionMatrix(); }
+  /* Kameraabstand, bei dem der ganze Grundriss genau in den freien Bereich passt */
+  const fitCam = camera.clone(), fitV = new THREE.Vector3(), fitS = new THREE.Spherical();
+  function fitView(phi, theta, rect) {
+    const pts = reg?.fitPts, W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!pts?.length || !rect || !W || !H) return null;
+    fitCam.copy(camera, false);
+    const pad = Math.max(8, Math.min(30, (rect.x1 - rect.x0) * 0.06, (rect.y1 - rect.y0) * 0.06));
+    const ok = d => {
+      fitS.set(d, phi, theta); fitCam.position.setFromSpherical(fitS); fitCam.lookAt(0, 0, 0); fitCam.updateMatrixWorld(true);
+      for (const p of pts) {
+        fitV.copy(p).project(fitCam); const x = (fitV.x + 1) / 2 * W, y = (1 - fitV.y) / 2 * H;
+        if (fitV.z > 1 || x < rect.x0 + pad || x > rect.x1 - pad || y < rect.y0 + pad || y > rect.y1 - pad) return false;
+      }
+      return true;
+    };
+    let lo = orbit.minR, hi = orbit.maxR; if (!ok(hi)) return hi;
+    for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (ok(m)) hi = m; else lo = m; }
+    return hi;
+  }
   function fitDistance(r, availW, availH, H) { const tv = Math.tan(camera.fov * DEG / 2); const fv = 2 * Math.atan(tv * availH / H), fh = 2 * Math.atan(tv * availW / H); return r / Math.sin(Math.min(fv, fh) / 2); }
   function loadPicture(id, url) {
     const s = reg?.screens.get(id); if (!s) return;
@@ -398,7 +420,7 @@ function hbMakeScene(THREE, canvas) {
   }
   function dispose() { clear(wallGroup); clear(content); renderer.dispose(); pmrem.dispose(); }
   return {
-    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, project, resize, fitDistance, loadPicture, dispose,
+    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, project, resize, fitDistance, fitView, loadPicture, dispose, lastUser: () => userAt,
     reg: () => reg, setNight: v => { nightTarget = v; }, setWallsLow: v => { wallTarget = v ? 0.42 : 1; }, wallsLow: () => wallTarget < 1, isFlying: () => !!tween,
   };
 }
