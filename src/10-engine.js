@@ -1,5 +1,5 @@
 /*! HomeBoo 3D Card | MIT License */
-const HB_VERSION = '0.1.1';
+const HB_VERSION = '0.2.0';
 const HB_THREE_DEFAULT = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const hbThreeCache = new Map();
 function hbLoadThree(url) {
@@ -47,9 +47,14 @@ function bbox(pts) { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Inf
 
 /* ---------- Kataloge ---------- */
 const FLOORS = {
-  oak: { n: ['Eiche dunkel', 'Dark oak'], c: '#6a4f3a' }, ash: { n: ['Eiche hell', 'Light oak'], c: '#8b745d' }, tile: { n: ['Fliesen', 'Tiles'], c: '#394154' },
-  slate: { n: ['Schiefer', 'Slate'], c: '#283042' }, carpet: { n: ['Teppichboden', 'Carpet'], c: '#4a4660' }, deck: { n: ['Holzdeck', 'Decking'], c: '#74573d' }, grass: { n: ['Rasen', 'Grass'], c: '#3c6637' },
+  oak: { n: ['Eiche dunkel', 'Dark oak'], c: '#6a4f3a' }, ash: { n: ['Eiche hell', 'Light oak'], c: '#8b745d' }, walnut: { n: ['Nussbaum', 'Walnut'], c: '#4a3526' },
+  white: { n: ['Holz weiß', 'White wood'], c: '#b9b0a2' }, herring: { n: ['Fischgrät', 'Herringbone'], c: '#86664a' },
+  tile: { n: ['Fliesen dunkel', 'Dark tiles'], c: '#394154' }, tileL: { n: ['Fliesen hell', 'Light tiles'], c: '#a9a6a0' }, marble: { n: ['Marmor', 'Marble'], c: '#cfccc6' },
+  terracotta: { n: ['Terrakotta', 'Terracotta'], c: '#9a553a' }, slate: { n: ['Schiefer', 'Slate'], c: '#283042' }, concrete: { n: ['Beton', 'Concrete'], c: '#666a72' },
+  carpet: { n: ['Teppich grau', 'Grey carpet'], c: '#4a4660' }, carpetL: { n: ['Teppich beige', 'Beige carpet'], c: '#9d9383' },
+  deck: { n: ['Holzdeck', 'Decking'], c: '#74573d' }, stone: { n: ['Steinplatten', 'Paving'], c: '#6f6c66' }, grass: { n: ['Rasen', 'Grass'], c: '#3c6637' },
 };
+const WALLCOLORS = [['', ['Weiß', 'White']], ['#efe6d6', ['Creme', 'Cream']], ['#d6d3cd', ['Hellgrau', 'Light grey']], ['#9ca1a8', ['Grau', 'Grey']], ['#b7c4ad', ['Salbei', 'Sage']], ['#a7bacb', ['Taubenblau', 'Dove blue']], ['#d9c4a5', ['Sand', 'Sand']], ['#c98f74', ['Terrakotta', 'Terracotta']], ['#d9b2b0', ['Altrosa', 'Dusty pink']], ['#2f5d62', ['Petrol', 'Teal']], ['#40454e', ['Anthrazit', 'Anthracite']]];
 const RTYPES = {
   wohnen: ['Wohnzimmer', 'Living room'], kueche: ['Küche', 'Kitchen'], essen: ['Essbereich', 'Dining'], schlafen: ['Schlafzimmer', 'Bedroom'], kind: ['Kinderzimmer', 'Kids room'],
   gast: ['Gästezimmer', 'Guest room'], buero: ['Büro', 'Office'], bad: ['Badezimmer', 'Bathroom'], wc: ['WC', 'Toilet'], flur: ['Flur', 'Hallway'], abstell: ['Abstellraum', 'Storage'],
@@ -68,9 +73,66 @@ const CAT = {
   bathtub: { n: ['Badewanne', 'Bathtub'], w: 1.7, d: 0.75, wall: 1, g: 4 }, shower: { n: ['Dusche', 'Shower'], w: 0.9, d: 0.9, wall: 1, g: 4 }, toilet: { n: ['WC', 'Toilet'], w: 0.4, d: 0.6, wall: 1, g: 4 },
   vanity: { n: ['Waschtisch', 'Vanity'], w: 0.8, d: 0.48, wall: 1, g: 4 }, washer: { n: ['Waschmaschine', 'Washer'], w: 0.6, d: 0.6, wall: 1, g: 4, ent: 'switch' },
   lounger: { n: ['Liege', 'Lounger'], w: 0.68, d: 1.85, g: 5 },
+  sectional: { n: ['Ecksofa', 'Corner sofa'], w: 2.6, d: 1.8, wall: 1, g: 0 }, sideboard: { n: ['Sideboard', 'Sideboard'], w: 1.8, d: 0.45, wall: 1, g: 0 },
+  fireplace: { n: ['Kamin', 'Fireplace'], w: 1.2, d: 0.45, wall: 1, g: 0, ent: 'switch' }, piano: { n: ['Klavier', 'Piano'], w: 1.5, d: 0.6, wall: 1, g: 0 },
+  dresser: { n: ['Kommode', 'Dresser'], w: 1.2, d: 0.5, wall: 1, g: 1 }, crib: { n: ['Kinderbett', 'Crib'], w: 0.76, d: 1.32, wall: 1, g: 1 },
+  island: { n: ['Kochinsel', 'Kitchen island'], w: 1.8, d: 0.9, g: 2 }, tallunit: { n: ['Backofen-Schrank', 'Oven column'], w: 0.6, d: 0.62, wall: 1, g: 2 },
+  cdesk: { n: ['Eckschreibtisch', 'Corner desk'], w: 1.6, d: 1.4, wall: 1, g: 3 },
+  dvanity: { n: ['Doppelwaschtisch', 'Double vanity'], w: 1.4, d: 0.5, wall: 1, g: 4 }, dryer: { n: ['Trockner', 'Dryer'], w: 0.6, d: 0.6, wall: 1, g: 4, ent: 'switch' },
+  parasol: { n: ['Sonnenschirm', 'Parasol'], w: 2.2, d: 2.2, g: 5 }, grill: { n: ['Grill', 'Barbecue'], w: 0.95, d: 0.55, g: 5 }, gardenset: { n: ['Gartentisch', 'Garden table'], w: 1.4, d: 0.8, g: 5 },
 };
 const CAT_GROUPS = [['Wohnen', 'Living'], ['Schlafen', 'Sleeping'], ['Küche & Essen', 'Kitchen & dining'], ['Arbeiten', 'Work'], ['Bad', 'Bath'], ['Draußen', 'Outdoor']];
-const DEVDEF = { light: { n: ['Deckenleuchte', 'Ceiling light'], ent: 'light', h: 2.1 }, lamp: { n: ['Stehlampe', 'Floor lamp'], ent: 'light' }, sensor: { n: ['Klimasensor', 'Climate sensor'], ent: 'sensor' } };
+const DEVDEF = {
+  light: { n: ['Deckenleuchte', 'Ceiling light'], ent: 'light', h: 2.1 }, spot: { n: ['Spot', 'Spotlight'], ent: 'light' }, lamp: { n: ['Stehlampe', 'Floor lamp'], ent: 'light' },
+  sensor: { n: ['Klimasensor', 'Climate sensor'], ent: 'sensor' }, motion: { n: ['Bewegungsmelder', 'Motion sensor'], ent: 'binary_sensor' },
+};
+
+/* ---------- Geräte aus Home Assistant einem Raum zuordnen ---------- */
+const HB_DOMAINS = ['light', 'switch', 'input_boolean', 'fan', 'cover', 'media_player', 'lock', 'climate'];
+const HB_MOTION_DC = ['motion', 'occupancy', 'presence'], HB_CONTACT_DC = ['door', 'window', 'opening', 'garage_door'];
+function hbAreaId(room, hass) {
+  if (!room.area || !hass?.areas) return null;
+  const A = hass.areas; if (A[room.area]) return room.area;
+  const want = room.area.trim().toLowerCase();
+  const hit = Object.values(A).find(a => (a.name || '').toLowerCase() === want || (a.area_id || '').toLowerCase() === want);
+  return hit ? hit.area_id : null;
+}
+function hbAreaEntities(room, hass) {
+  const id = hbAreaId(room, hass); if (!id || !hass?.entities) return [];
+  const out = [];
+  for (const e of Object.values(hass.entities)) {
+    if (e.hidden || e.entity_category) continue;
+    const a = e.area_id || (e.device_id && hass.devices?.[e.device_id]?.area_id);
+    if (a === id && hass.states[e.entity_id]) out.push(e.entity_id);
+  }
+  return out;
+}
+/* Was die Karte mit einer Entität anfangen kann: ctl (schaltbar), temp, hum, motion, contact, value */
+function hbEntKind(hass, eid) {
+  const d = eid.split('.')[0], s = hass?.states?.[eid];
+  if (HB_DOMAINS.includes(d)) return 'ctl';
+  if (!s) return null;
+  const dc = s.attributes?.device_class, unit = s.attributes?.unit_of_measurement || '';
+  if (d === 'sensor') { if (dc === 'temperature' || /°/.test(unit)) return 'temp'; if (dc === 'humidity' || (unit === '%' && /hum|feucht/i.test(eid))) return 'hum'; return null; }
+  if (d === 'binary_sensor') { if (HB_MOTION_DC.includes(dc)) return 'motion'; if (HB_CONTACT_DC.includes(dc)) return 'contact'; }
+  return null;
+}
+/* Alle Entitäten eines Raums – aus dem Plan, von Hand hinzugefügt und aus dem Bereich (ohne Ausblenden) */
+function hbRoomEntities(plan, room, hass) {
+  const out = [], seen = new Set();
+  const push = (eid, src, force) => {
+    if (!eid || seen.has(eid) || !hass?.states?.[eid]) return;
+    let k = hbEntKind(hass, eid); const d = eid.split('.')[0];
+    if (!k && src !== 'area') k = d === 'binary_sensor' ? (force || 'contact') : d === 'sensor' ? 'value' : null;
+    if (!k) return; seen.add(eid); out.push({ eid, d, kind: k, src });
+  };
+  for (const dv of plan.devices) if (dv.entity && inPoly(room.pts, dv.x, dv.y)) push(dv.entity, 'dev', dv.kind === 'motion' ? 'motion' : null);
+  for (const it of plan.items) if (it.entity && inPoly(room.pts, it.x, it.y)) push(it.entity, 'item');
+  for (const o of plan.openings) if (o.room === room.id) { if (o.entity) push(o.entity, 'op'); if (o.contact) push(o.contact, 'op', 'contact'); }
+  for (const e of room.add || []) push(e, 'add');
+  for (const e of hbAreaEntities(room, hass)) push(e, 'area');
+  return out;
+}
 
 /* ---------- Plan ---------- */
 function emptyPlan() { return { format: 'homeboo-plan', version: 1, name: T('Mein Zuhause', 'My home'), wallHeight: 2.55, rooms: [], openings: [], items: [], devices: [] }; }
@@ -78,8 +140,9 @@ function normalizePlan(p) {
   const e = emptyPlan();
   if (!p || typeof p !== 'object') return e;
   const out = { ...e, ...p };
-  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
-  out.openings = (Array.isArray(p.openings) ? p.openings : []).filter(o => OPDEF[o.type]).map(o => ({ id: o.id || uid('o'), flipHinge: false, flipSide: false, entity: '', sill: OPDEF[o.type].sill ?? 0, h: OPDEF[o.type].h, w: OPDEF[o.type].w, ...o }));
+  const strs = a => Array.isArray(a) ? [...new Set(a.filter(x => typeof x === 'string' && x.includes('.')))] : [];
+  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', wall: /^#[0-9a-f]{6}$/i.test(r.wall || '') ? r.wall : '', hide: strs(r.hide), add: strs(r.add), open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
+  out.openings = (Array.isArray(p.openings) ? p.openings : []).filter(o => OPDEF[o.type]).map(o => ({ id: o.id || uid('o'), flipHinge: false, flipSide: false, entity: '', contact: '', sill: OPDEF[o.type].sill ?? 0, h: OPDEF[o.type].h, w: OPDEF[o.type].w, ...o }));
   out.items = (Array.isArray(p.items) ? p.items : []).filter(i => CAT[i.kind]).map(i => ({ id: i.id || uid('i'), rot: 0, w: CAT[i.kind].w, d: CAT[i.kind].d, ...i }));
   out.devices = (Array.isArray(p.devices) ? p.devices : []).filter(d => DEVDEF[d.kind]).map(d => ({ id: d.id || uid('d'), name: '', entity: '', ...d }));
   out.wallHeight = clamp(+out.wallHeight || 2.55, 2, 4);
@@ -173,15 +236,15 @@ function roomOfPoint(plan, x, y) { return plan.rooms.find(r => inPoly(r.pts, x, 
 
 /* ---------- Beispielwohnung für neue Karten ---------- */
 function demoPlan() {
-  const R = (id, type, floor, pts, extra = {}) => ({ id, name: N(RTYPES[type]), type, floor, outdoor: false, area: '', open: [], pts, ...extra });
+  const R = (id, type, floor, pts, extra = {}) => ({ id, name: N(RTYPES[type]), type, floor, outdoor: false, area: '', wall: '', hide: [], add: [], open: [], pts, ...extra });
   const p = emptyPlan();
   p.name = T('Beispielwohnung', 'Sample apartment');
   p.rooms = [
-    R('wohnen', 'wohnen', 'oak', [[0, 0], [6, 0], [6, 4.5], [0, 4.5]], { area: 'living_room' }),
-    R('schlafen', 'schlafen', 'ash', [[6, 0], [10, 0], [10, 4.5], [6, 4.5]], { area: 'bedroom' }),
-    R('buero', 'buero', 'ash', [[0, 4.5], [3, 4.5], [3, 8], [0, 8]], { area: 'office' }),
-    R('flur', 'flur', 'slate', [[3, 4.5], [7, 4.5], [7, 8], [3, 8]], { area: 'hallway' }),
-    R('bad', 'bad', 'tile', [[7, 4.5], [10, 4.5], [10, 8], [7, 8]], { area: 'bathroom' }),
+    R('wohnen', 'wohnen', 'herring', [[0, 0], [6, 0], [6, 4.5], [0, 4.5]], { area: 'living_room', wall: '#b7c4ad' }),
+    R('schlafen', 'schlafen', 'ash', [[6, 0], [10, 0], [10, 4.5], [6, 4.5]], { area: 'bedroom', wall: '#a7bacb' }),
+    R('buero', 'buero', 'walnut', [[0, 4.5], [3, 4.5], [3, 8], [0, 8]], { area: 'office' }),
+    R('flur', 'flur', 'concrete', [[3, 4.5], [7, 4.5], [7, 8], [3, 8]], { area: 'hallway' }),
+    R('bad', 'bad', 'tileL', [[7, 4.5], [10, 4.5], [10, 8], [7, 8]], { area: 'bathroom' }),
     R('balkon', 'balkon', 'deck', [[1.5, -1.6], [4.5, -1.6], [4.5, 0], [1.5, 0]], { outdoor: true }),
   ];
   const op = (type, room, at, w, extra = {}) => { const b = nearestEdge(p, at, { room }); p.openings.push({ id: uid('o'), type, room: b.room, edge: b.edge, t: b.t, w: w ?? OPDEF[type].w, sill: OPDEF[type].sill ?? 0, h: OPDEF[type].h, flipHinge: false, flipSide: false, entity: '', ...extra }); };

@@ -32,11 +32,11 @@ const HB_PLAN_CSS = HB_BASE_CSS + `
 .tb{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px 6px;border-radius:10px;border:1px solid var(--hb-line);background:#141a2e;font-weight:600;font-size:10.5px;color:var(--hb-muted);cursor:pointer}
 .tb svg{width:20px;height:20px}.tb:hover{color:var(--hb-fg)}
 .tb[aria-pressed="true"]{color:var(--hb-accent);border-color:rgba(126,240,255,.5);background:var(--hb-accent-soft)}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.tile{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 5px;border-radius:10px;border:1px solid var(--hb-line);background:#141a2e;font-weight:600;font-size:10.5px;line-height:1.15;color:var(--hb-muted);text-align:center;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.tile{min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 5px;border-radius:10px;border:1px solid var(--hb-line);background:#141a2e;font-weight:600;font-size:10.5px;line-height:1.15;color:var(--hb-muted);text-align:center;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .tile:hover{color:var(--hb-fg);border-color:rgba(126,240,255,.4)}
 .tile svg{width:40px;height:34px}
-.tile span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.tile span{max-width:100%;overflow:hidden;padding:0 2px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:anywhere}
 .views{display:grid;gap:10px;min-height:0;min-width:0}
 .views.m-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .views.m-2d .v3d,.views.m-3d .v2d{display:none}
@@ -93,6 +93,30 @@ textarea.inp{height:150px;padding:10px;font:400 11px/1.45 var(--hb-mono);resize:
 .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(4,6,12,.66)}
 .dlg{width:min(560px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:18px;background:#0f1324;border:1px solid var(--hb-line2)}
 .dlg h2{margin:0;font-weight:700;font-size:17px}.dlg p{margin:0;color:var(--hb-muted);font-size:13px}
+.hint2{margin:0;font-size:12px;color:var(--hb-muted)}
+.lnk{border:0;background:none;padding:0;color:var(--hb-accent);font-weight:600;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.elist{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--hb-line2) transparent}
+.er{display:grid;grid-template-columns:28px minmax(0,1fr) 30px;align-items:center;gap:8px;padding:5px 5px 5px 7px;border-radius:10px;background:#141a2e;border:1px solid transparent}
+.er .ei{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:rgba(126,240,255,.08);color:var(--hb-accent)}
+.er .ei svg{width:16px;height:16px}
+.er .et{min-width:0;display:flex;flex-direction:column}
+.er .et b{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.er .et small{font:500 10.5px/1.4 var(--hb-mono);color:var(--hb-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.er.off{background:transparent;border-color:var(--hb-line)}.er.off .ei{background:rgba(255,255,255,.04);color:var(--hb-faint)}.er.off .et b{color:var(--hb-muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.25)}
+.eb{width:30px;height:30px;border-radius:8px;border:1px solid var(--hb-line);background:transparent;color:var(--hb-faint);display:grid;place-items:center;cursor:pointer;padding:0}
+.eb svg{width:16px;height:16px}.eb:hover{color:var(--hb-fg);border-color:var(--hb-line2)}.eb.on{color:var(--hb-accent)}
+.addr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.addr .btn{height:34px}
+.fls{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.fl{display:flex;align-items:center;gap:7px;height:32px;padding:0 8px;border-radius:9px;border:1px solid var(--hb-line);background:#141a2e;font-weight:600;font-size:11.5px;color:var(--hb-muted);cursor:pointer;text-align:left;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl i{width:16px;height:16px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.fl:hover{color:var(--hb-fg)}.fl.on{border-color:rgba(126,240,255,.6);color:var(--hb-accent);background:var(--hb-accent-soft)}
+.wcs{display:flex;flex-wrap:wrap;gap:7px}
+.wc{position:relative;width:28px;height:28px;border-radius:50%;border:2px solid #0f1324;background:var(--c);box-shadow:0 0 0 1px var(--hb-line2);cursor:pointer;padding:0}
+.wc.on{box-shadow:0 0 0 2px var(--hb-accent)}
+.wc.custom{background:conic-gradient(#ff7a8a,#ffc98a,#74e3a8,#7ef0ff,#b48cff,#ff7a8a);overflow:hidden}
+.wc.custom.on{background:var(--c)}
+.wc.custom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
 [hidden]{display:none!important}
 @media (max-width:1180px){.main{grid-template-columns:210px minmax(0,1fr) 256px}.views.m-split{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
 @media (max-width:899px){
@@ -146,16 +170,32 @@ function hbItemShape(kind, w, d, it = {}) {
     case 'vanity': return R(-hw, -hd, w, d, C2.wood, 0.02) + `<ellipse cx="0" cy="0" rx="${fx(hw * 0.55)}" ry="${fx(hd * 0.6)}" fill="${C2.cer}" ${k}/>`;
     case 'washer': return R(-hw, -hd, w, d, C2.cer, 0.04) + Ci(0, 0.03, Math.min(hw, hd) * 0.55, '#8fa0bf');
     case 'lounger': return R(-hw, -hd, w, d, '#9a6b44', 0.04) + R(-hw + 0.04, -hd + 0.06, w - 0.08, d - 0.12, '#e6dccd', 0.05);
+    case 'sectional': { const sd = Math.min(0.95, d), f = '#6d7590', a = '#5b627b'; return R(-hw, -hd, w, sd, f, 0.08) + R(hw - sd, -hd + sd - 0.05, sd, d - sd + 0.05, f, 0.08) + R(-hw, -hd, w, 0.22, '#4f556b', 0.06) + R(-hw, -hd, 0.17, sd, a, 0.06) + R(hw - 0.17, -hd, 0.17, d, a, 0.06); }
+    case 'sideboard': { let s = R(-hw, -hd, w, d, C2.woodD, 0.02); const n = Math.max(2, Math.round(w / 0.45)); for (let i = 1; i < n; i++) s += svgLine([-hw + i * w / n, -hd], [-hw + i * w / n, hd], C2.ink, 0.012); return s; }
+    case 'fireplace': return R(-hw, -hd, w, d, '#cfc9be', 0.02) + R(-w * 0.31, hd - 0.14, w * 0.62, 0.12, '#0b0d14', 0.01) + `<ellipse cx="0" cy="${fx(hd - 0.08)}" rx="${fx(w * 0.18)}" ry="0.04" fill="#ff8a3a"/>`;
+    case 'piano': return R(-hw, -hd, w, d * 0.55, '#15161b', 0.02) + R(-hw, -hd + d * 0.55, w, d * 0.45, '#15161b', 0.01) + R(-hw + 0.06, -hd + d * 0.6, w - 0.12, d * 0.28, '#f4f4f6', 0.005) + R(-0.4, hd + 0.15, 0.8, 0.34, '#15161b', 0.03);
+    case 'dresser': return R(-hw, -hd, w, d, C2.white, 0.02) + svgLine([-hw + 0.04, hd - 0.03], [hw - 0.04, hd - 0.03], C2.ink, 0.02) + Ci(-w * 0.3, 0, Math.min(0.12, hd * 0.5), '#f3e6cf');
+    case 'crib': return R(-hw, -hd, w, d, C2.white, 0.03) + R(-hw + 0.05, -hd + 0.05, w - 0.1, d - 0.1, '#ece7df', 0.03) + R(-hw + 0.07, 0, w - 0.14, d * 0.38, '#7b8fae', 0.02);
+    case 'island': return R(-hw, -hd, w, d, C2.dark, 0.01) + R(-hw, -hd, w, d, 'none', 0.01, 'stroke="#cfd2da" stroke-width="0.025"') + Ci(-w * 0.22, 0, 0.14, C2.white);
+    case 'tallunit': return R(-hw, -hd, w, d, C2.dark, 0.01) + svgLine([-hw + 0.06, hd - 0.04], [hw - 0.06, hd - 0.04], '#ff8a3a', 0.025);
+    case 'cdesk': { const dp = Math.min(0.7, d, w); let s = R(-hw, -hd, w, dp, C2.woodL, 0.02) + R(-hw, -hd + dp - 0.02, dp, d - dp + 0.02, C2.woodL, 0.02); if (it.pc) s += svgLine([-hw + dp + 0.05, -hd + 0.16], [Math.min(hw - 0.05, -hw + dp + 0.65), -hd + 0.16], '#0b0d14', 0.04) + svgLine([-hw + 0.16, -hd + dp + 0.05], [-hw + 0.16, Math.min(hd - 0.05, -hd + dp + 0.65)], '#0b0d14', 0.04); return s; }
+    case 'dvanity': return R(-hw, -hd, w, d, C2.wood, 0.02) + [-1, 1].map(sx => `<ellipse cx="${fx(sx * w / 4)}" cy="0" rx="${fx(Math.min(0.25, w * 0.16))}" ry="${fx(hd * 0.6)}" fill="${C2.cer}" ${k}/>`).join('');
+    case 'dryer': return R(-hw, -hd, w, d, C2.cer, 0.04) + Ci(0, 0.03, Math.min(hw, hd) * 0.55, '#c7cede');
+    case 'parasol': { const r = Math.min(hw, hd); let s = Ci(0, 0, r, '#e8dcc6'); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; s += svgLine([0, 0], [Math.cos(a) * r, Math.sin(a) * r], 'rgba(120,100,80,.5)', 0.02); } return s + Ci(0, 0, 0.05, '#7a6a5a'); }
+    case 'grill': return R(-hw, -hd, w * 0.62, d, '#2a2f3d', 0.05) + R(-hw + w * 0.62, -hd + 0.03, w * 0.38, d - 0.06, C2.steel, 0.02) + [0.25, 0.5, 0.75].map(f => svgLine([-hw + 0.05, -hd + d * f], [-hw + w * 0.57, -hd + d * f], '#5d648a', 0.012)).join('');
+    case 'gardenset': { let s = ''; const n = Math.max(1, Math.floor(w / 0.65)); for (let i = 0; i < n; i++) { const x = -hw + w * (i + 0.5) / n; s += R(x - 0.22, -hd - 0.52, 0.44, 0.44, '#9a6b44', 0.06) + R(x - 0.22, hd + 0.08, 0.44, 0.44, '#9a6b44', 0.06); } return s + R(-hw, -hd, w, d, '#b58556', 0.03); }
     default: return R(-hw, -hd, w, d, C2.fab, 0.03);
   }
 }
 function hbDeviceSVG(d) {
-  const col = d.kind === 'sensor' ? '#7ef0ff' : '#ffc98a';
+  const col = d.kind === 'sensor' ? '#7ef0ff' : d.kind === 'motion' ? '#b48cff' : '#ffc98a';
   let g = `<g class="dv" data-dv="${d.id}" transform="translate(${fx(d.x)} ${fx(d.y)})">`;
-  if (d.kind !== 'sensor') g += `<circle r="0.42" fill="url(#devGlow)"/>`;
+  if (d.kind !== 'sensor' && d.kind !== 'motion') g += `<circle r="${d.kind === 'spot' ? 0.3 : 0.42}" fill="url(#devGlow)"/>`;
   g += `<circle r="0.15" fill="#121628" stroke="${col}" stroke-width="0.03"/>`;
   if (d.kind === 'light') { g += `<circle r="0.055" fill="${col}"/>`; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4; g += svgLine([Math.cos(a) * 0.08, Math.sin(a) * 0.08], [Math.cos(a) * 0.12, Math.sin(a) * 0.12], col, 0.02); } }
+  else if (d.kind === 'spot') g += `<circle r="0.09" fill="none" stroke="${col}" stroke-width="0.02"/><circle r="0.045" fill="${col}"/>`;
   else if (d.kind === 'lamp') g += `<circle r="0.07" fill="none" stroke="${col}" stroke-width="0.025"/><circle r="0.03" fill="${col}"/>`;
+  else if (d.kind === 'motion') g += `<circle r="0.03" fill="${col}"/><path d="M-0.05 -0.08A0.095 0.095 0 0 0 -0.05 0.08M0.05 -0.08A0.095 0.095 0 0 1 0.05 0.08" fill="none" stroke="${col}" stroke-width="0.022" stroke-linecap="round"/>`;
   else g += `<rect x="-0.06" y="-0.06" width="0.12" height="0.12" rx="0.02" fill="none" stroke="${col}" stroke-width="0.022"/>`;
   return g + '</g>';
 }
@@ -163,7 +203,7 @@ function hbDeviceSVG(d) {
 function hbCreatePlanner(root, opts) {
   const $ = s => root.querySelector(s);
   const hass = opts.hass;
-  root.innerHTML = `<style>${HB_PLAN_CSS}</style><div class="app">
+  root.innerHTML = `<style>${HB_PLAN_CSS}</style><div class="app" lang="${HB_LANG}">
     <header class="bar">
       <div class="brand"><span class="ghost">${HB_GHOST}</span><b class="hide-s">${T('Grundriss-Editor', 'Floor plan editor')}</b></div>
       <input class="pname" id="planName" aria-label="${T('Name des Plans', 'Plan name')}">
@@ -435,7 +475,7 @@ function hbCreatePlanner(root, opts) {
     view.s = clamp(Math.min((W - 80) / bw, (H - 140) / bh), 6, 500); view.tx = W / 2 - (b.x0 + bw / 2) * view.s; view.ty = H / 2 - (b.y0 + bh / 2) * view.s + 4; req(1 | 4);
   }
   function createRoom(pts) {
-    const r = { id: uid('r'), name: `${T('Raum', 'Room')} ${plan.rooms.length + 1}`, type: 'sonst', floor: 'ash', outdoor: false, area: '', open: [], pts: pts.map(p => p.map(r2)) };
+    const r = { id: uid('r'), name: `${T('Raum', 'Room')} ${plan.rooms.length + 1}`, type: 'sonst', floor: 'ash', outdoor: false, area: '', wall: '', hide: [], add: [], open: [], pts: pts.map(p => p.map(r2)) };
     plan.rooms.push(r); setTool('select'); setSel({ type: 'room', id: r.id, vi: null }); commit(true);
     toast(T('Raum angelegt. Ecken und Wände kannst du jetzt direkt ziehen.', 'Room created. You can now drag its corners and walls.'));
   }
@@ -532,7 +572,7 @@ function hbCreatePlanner(root, opts) {
   on(window, 'blur', () => { keys.shift = keys.alt = keys.space = false; });
 
   /* ---------- Linke Leiste ---------- */
-  function itemIcon(kind) { const c = CAT[kind], m = Math.max(c.w, c.d) / 2 * (kind === 'dining' ? 1.75 : 1.12); return `<svg viewBox="${fx(-m)} ${fx(-m)} ${fx(2 * m)} ${fx(2 * m)}" aria-hidden="true">${hbItemShape(kind, c.w, c.d, { kind })}</svg>`; }
+  function itemIcon(kind) { const c = CAT[kind], m = Math.max(c.w, c.d) / 2 * (kind === 'dining' || kind === 'gardenset' ? 1.75 : kind === 'piano' ? 1.5 : 1.12); return `<svg viewBox="${fx(-m)} ${fx(-m)} ${fx(2 * m)} ${fx(2 * m)}" aria-hidden="true">${hbItemShape(kind, c.w, c.d, { kind })}</svg>`; }
   function devIcon(kind) { return `<svg viewBox="-0.45 -0.45 0.9 0.9" aria-hidden="true"><defs><radialGradient id="dg_${kind}"><stop offset="0" stop-color="#ffc98a" stop-opacity=".55"/><stop offset="1" stop-color="#ffc98a" stop-opacity="0"/></radialGradient></defs>${hbDeviceSVG({ id: '', kind, x: 0, y: 0 }).replace(/data-dv="[^"]*"/, '').replace('url(#devGlow)', `url(#dg_${kind})`)}</svg>`; }
   function renderLeft() {
     const tools = [['select', T('Auswählen', 'Select'), HB_PIC.select], ['rect', T('Raum', 'Room'), HB_PIC.rect], ['poly', T('Freie Form', 'Free shape'), HB_PIC.poly], ['measure', T('Maßstab', 'Scale'), HB_PIC.measure]];
@@ -552,6 +592,32 @@ function hbCreatePlanner(root, opts) {
   const sel3 = (name, opts, val, label, id) => `<div class="fld"><label for="${id}">${label}</label><select class="inp" id="${id}" data-f="${name}">${Object.entries(opts).map(([k, v]) => `<option value="${esc(k)}" ${k === val ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>`;
   const inp = (name, val, label, id, type = 'text', extra = '') => `<div class="fld"><label for="${id}">${label}</label><input class="inp" id="${id}" data-f="${name}" type="${type}" value="${esc(val ?? '')}" ${extra}></div>`;
   const nInp = (name, val, label, id) => inp(name, fmtNum(+val || 0), label, id, 'text', 'inputmode="decimal" data-num="1"');
+  const fname = e => hass?.states[e]?.attributes?.friendly_name || e;
+  const dlList = (id, ids) => `<datalist id="${id}">${ids.slice(0, 600).map(e => `<option value="${e}">${esc(fname(e))}</option>`).join('')}</datalist>`;
+  function entIcon(c) {
+    if (c.kind === 'temp') return HB_ICON.thermo; if (c.kind === 'hum') return HB_ICON.drop; if (c.kind === 'motion') return HB_ICON.motion; if (c.kind === 'contact') return HB_ICON.contact; if (c.kind === 'value') return HB_ICON.sensor;
+    return { light: HB_ICON.bulb, cover: HB_ICON.blinds, media_player: HB_ICON.tv, lock: HB_ICON.lock, climate: HB_ICON.thermo, fan: HB_ICON.fan }[c.d] || HB_ICON.power;
+  }
+  /* Geräteliste eines Raums: ein-/ausblenden und Geräte aus anderen Bereichen dazunehmen */
+  function roomDevicesHTML(r) {
+    let h = `<div class="sec"><h3>${T('Geräte in diesem Raum', 'Devices in this room')}</h3>`;
+    if (!hass?.states) return h + `<p class="note">${T('Die Geräteliste erscheint, wenn du den Editor aus Home Assistant öffnest.', 'The device list appears when you open the editor from Home Assistant.')}</p></div>`;
+    const ents = hbRoomEntities(plan, r, hass), hid = new Set(r.hide || []), SRC = { dev: T('im Plan', 'in plan'), item: T('Möbel', 'furniture'), op: T('Tür/Fenster', 'door/window'), add: T('hinzugefügt', 'added'), area: T('Bereich', 'area') };
+    if (ents.length) {
+      const shown = ents.filter(c => !hid.has(c.eid)).length;
+      h += `<p class="hint2">${shown} ${T('von', 'of')} ${ents.length} ${T('werden in der Karte angezeigt', 'shown on the card')}${hid.size ? ` · <button type="button" class="lnk" data-act="eshowall">${T('Alle einblenden', 'Show all')}</button>` : ''}</p><div class="elist">`;
+      for (const c of ents) {
+        const off = hid.has(c.eid);
+        const btn = c.src === 'add' ? `<button type="button" class="eb" data-act="eremove" data-e="${esc(c.eid)}" title="${T('Wieder entfernen', 'Remove again')}" aria-label="${T('Entfernen', 'Remove')}: ${esc(fname(c.eid))}">${HB_PIC.x}</button>`
+          : `<button type="button" class="eb${off ? '' : ' on'}" data-act="ehide" data-e="${esc(c.eid)}" aria-pressed="${!off}" title="${off ? T('In der Karte einblenden', 'Show on the card') : T('In der Karte ausblenden', 'Hide on the card')}" aria-label="${off ? T('Einblenden', 'Show') : T('Ausblenden', 'Hide')}: ${esc(fname(c.eid))}">${off ? HB_ICON.eyeOff : HB_ICON.eye}</button>`;
+        h += `<div class="er${off ? ' off' : ''}"><span class="ei">${entIcon(c)}</span><span class="et"><b>${esc(fname(c.eid))}</b><small>${esc(c.eid)} · ${SRC[c.src] || ''}</small></span>${btn}</div>`;
+      }
+      h += `</div>`;
+    } else h += `<p class="note">${r.area ? T('In diesem Bereich gibt es keine Geräte, die die Karte anzeigen kann.', 'This area has no devices the card can show.') : T('Wähle oben einen Bereich – dann erscheinen hier seine Geräte.', 'Pick an area above – its devices then appear here.')}</p>`;
+    const have = new Set(ents.map(c => c.eid)), cand = Object.keys(hass.states).filter(e => !have.has(e) && /^(light|switch|input_boolean|fan|cover|media_player|lock|climate|sensor|binary_sensor)\./.test(e)).sort();
+    h += `<div class="addr"><input class="inp" id="f_eadd" list="dl_eadd" placeholder="${T('Gerät hinzufügen …', 'Add a device …')}" aria-label="${T('Gerät hinzufügen', 'Add a device')}" autocomplete="off"><button type="button" class="btn small" data-act="eadd">${T('Hinzufügen', 'Add')}</button></div>${dlList('dl_eadd', cand)}`;
+    return h + `<p class="note">${T('Mit dem <b>Auge</b> blendest du ein Gerät in der Karte aus. Über <b>Hinzufügen</b> holst du Geräte aus anderen Bereichen in diesen Raum.', 'Use the <b>eye</b> to hide a device on the card. <b>Add</b> brings devices from other areas into this room.')}</p></div>`;
+  }
   function renderPanel() {
     let h = '';
     if (!sel) {
@@ -563,11 +629,13 @@ function hbCreatePlanner(root, opts) {
     } else if (sel.type === 'room') {
       const r = RM(sel.id), A = Math.abs(polyArea(r.pts));
       h += `<div class="ph"><h2>${esc(r.name)}</h2><span class="tag">${T('Raum', 'Room')}</span></div>` + inp('name', r.name, T('Name', 'Name'), 'f_rname');
-      h += `<div class="row2">${sel3('type', Object.fromEntries(Object.entries(RTYPES).map(([k, v]) => [k, N(v)])), r.type, T('Raumart', 'Room type'), 'f_rtype')}${sel3('floor', Object.fromEntries(Object.entries(FLOORS).map(([k, v]) => [k, N(v.n)])), r.floor, T('Boden', 'Floor'), 'f_rfloor')}</div>`;
+      h += sel3('type', Object.fromEntries(Object.entries(RTYPES).map(([k, v]) => [k, N(v)])), r.type, T('Raumart', 'Room type'), 'f_rtype');
       h += `<label class="chk"><input type="checkbox" data-f="outdoor" ${r.outdoor ? 'checked' : ''}> ${T('Außenbereich (Geländer statt Wände)', 'Outdoor (railing instead of walls)')}</label>`;
       if (hass?.areas && Object.keys(hass.areas).length) h += sel3('area', { '': T('– kein Bereich –', '– no area –'), ...Object.fromEntries(Object.values(hass.areas).map(a => [a.area_id, a.name])) }, r.area || '', T('Bereich in Home Assistant', 'Home Assistant area'), 'f_rarea');
       else h += inp('area', r.area, T('Bereich in Home Assistant', 'Home Assistant area'), 'f_rarea', 'text', `placeholder="${T('z. B. wohnzimmer', 'e.g. living_room')}"`);
-      h += `<p class="note">${T('Alle Lichter, Schalter, Rollläden und Sensoren dieses Bereichs erscheinen automatisch im Raum.', 'All lights, switches, covers and sensors of this area appear in the room automatically.')}</p>`;
+      h += roomDevicesHTML(r);
+      h += `<div class="sec"><h3>${T('Boden', 'Floor')}</h3><div class="fls">${Object.entries(FLOORS).map(([k, f]) => `<button type="button" class="fl${r.floor === k ? ' on' : ''}" data-act="floor" data-k="${k}" aria-pressed="${r.floor === k}"><i style="background:${f.c}"></i>${N(f.n)}</button>`).join('')}</div></div>`;
+      if (!r.outdoor) h += `<div class="sec"><h3>${T('Wandfarbe innen', 'Interior wall colour')}</h3><div class="wcs">${WALLCOLORS.map(([c, n]) => `<button type="button" class="wc${(r.wall || '') === c ? ' on' : ''}" style="--c:${c || '#ecebe7'}" data-act="wall" data-c="${c}" title="${N(n)}" aria-label="${N(n)}" aria-pressed="${(r.wall || '') === c}"></button>`).join('')}<label class="wc custom${r.wall && !WALLCOLORS.some(x => x[0] === r.wall) ? ' on' : ''}" title="${T('Eigene Farbe', 'Custom colour')}" style="--c:${r.wall || '#ecebe7'}"><input type="color" data-f="wall" value="${r.wall || '#ecebe7'}" aria-label="${T('Eigene Farbe', 'Custom colour')}"></label></div></div>`;
       h += `<div class="stat"><span>${T('Fläche', 'Area')}</span><b>${fmtA(A)}</b></div>`;
       if (sel.vi != null && r.pts[sel.vi]) { const v = r.pts[sel.vi]; h += `<div class="sec"><h3>${T('Ecke', 'Corner')} ${sel.vi + 1}</h3><div class="row2">${nInp('vx', v[0], 'X (m)', 'f_vx')}${nInp('vy', v[1], 'Y (m)', 'f_vy')}</div><div class="acts"><button type="button" class="btn small danger" data-act="vdel">${T('Ecke löschen', 'Delete corner')}</button></div></div>`; }
       h += `<div class="sec"><h3>${T('Wände', 'Walls')}</h3><div class="wl">${r.pts.map((_, i) => { const e = edgeOf(r, i), op = (r.open || []).includes(i); return `<div class="wr" data-edge="${i}"><span><b>${T('Wand', 'Wall')} ${i + 1}</b>${fmtM(e.L)}</span><button type="button" class="tog ${op ? 'open' : ''}" data-act="edgeopen" data-i="${i}" aria-pressed="${op}">${op ? T('Offen', 'Open') : T('Wand', 'Wall')}</button></div>`; }).join('')}</div></div>`;
@@ -579,19 +647,24 @@ function hbCreatePlanner(root, opts) {
       if (isDoor) h += `<div class="acts"><button type="button" class="btn small" data-act="flipHinge">${T('Anschlag wechseln', 'Flip hinge')}</button><button type="button" class="btn small" data-act="flipSide">${T('Aufschlagrichtung', 'Flip swing')}</button></div>`;
       if (isWin) h += inp('entity', o.entity, T('Rollladen (Entität)', 'Cover (entity)'), 'f_oent', 'text', 'placeholder="cover.…" list="dl_cover"') + dl('dl_cover', 'cover');
       if (o.type === 'front') h += inp('entity', o.entity, T('Türschloss (Entität)', 'Lock (entity)'), 'f_oent', 'text', 'placeholder="lock.…" list="dl_lock"') + dl('dl_lock', 'lock');
+      if (hass?.states) { const bs = Object.keys(hass.states).filter(e => e.startsWith('binary_sensor.')), pri = e => HB_CONTACT_DC.includes(hass.states[e]?.attributes?.device_class) ? 0 : 1; bs.sort((a, b) => pri(a) - pri(b) || a.localeCompare(b)); h += inp('contact', o.contact, T('Kontakt-Sensor (offen/zu)', 'Contact sensor (open/closed)'), 'f_ocon', 'text', 'placeholder="binary_sensor.…" list="dl_con" autocomplete="off"') + dlList('dl_con', bs); }
+      else h += inp('contact', o.contact, T('Kontakt-Sensor (offen/zu)', 'Contact sensor (open/closed)'), 'f_ocon', 'text', 'placeholder="binary_sensor.…"');
+      h += `<p class="note">${isDoor ? T('Mit Kontakt-Sensor geht die Tür im Modell auf und zu und leuchtet orange, solange sie offen ist.', 'With a contact sensor the door opens and closes in the model and glows orange while open.') : T('Mit Kontakt-Sensor leuchtet das Fenster im Modell orange, solange es offen ist.', 'With a contact sensor the window glows orange in the model while it is open.')}</p>`;
       h += `<p class="note">${T('Ziehen verschiebt entlang der Wand oder auf eine andere Wand. Die Griffe an den Enden ändern die Breite.', 'Drag to move along the wall or onto another wall. The end handles change the width.')}</p><div class="acts"><button type="button" class="btn small danger" data-act="del">${T('Löschen', 'Delete')}</button></div>`;
     } else if (sel.type === 'item') {
       const it = IT(sel.id), c = CAT[it.kind];
       h += `<div class="ph"><h2>${N(c.n)}</h2><span class="tag">${T('Möbel', 'Furniture')}</span></div><div class="row3">${nInp('w', it.w, T('Breite (m)', 'Width (m)'), 'f_iw')}${nInp('d', it.d, T('Tiefe (m)', 'Depth (m)'), 'f_id')}${nInp('rot', it.rot, T('Drehung (°)', 'Rotation (°)'), 'f_irot')}</div>`;
       h += `<div class="acts"><button type="button" class="btn small" data-act="rot" data-d="-90">↺ 90°</button><button type="button" class="btn small" data-act="rot" data-d="90">↻ 90°</button>${c.wall ? `<button type="button" class="btn small" data-act="towall">${T('An Wand setzen', 'Snap to wall')}</button>` : ''}</div>`;
       if (it.kind === 'counter') h += `<label class="chk"><input type="checkbox" data-f="sink" ${it.sink ? 'checked' : ''}> ${T('Spüle', 'Sink')}</label><label class="chk"><input type="checkbox" data-f="hob" ${it.hob ? 'checked' : ''}> ${T('Kochfeld', 'Hob')}</label>`;
-      if (it.kind === 'desk') h += `<label class="chk"><input type="checkbox" data-f="pc" ${it.pc ? 'checked' : ''}> ${T('Mit Bildschirmen', 'With monitors')}</label>`;
-      if (c.ent || it.kind === 'desk' || it.entity) h += inp('entity', it.entity, T('Gerät in Home Assistant (Entität)', 'Home Assistant entity'), 'f_ient', 'text', `placeholder="${c.ent || 'switch'}.…" list="dl_item"`) + dl('dl_item', 'media_player|switch|input_boolean');
+      if (it.kind === 'desk' || it.kind === 'cdesk') h += `<label class="chk"><input type="checkbox" data-f="pc" ${it.pc ? 'checked' : ''}> ${T('Mit Bildschirmen', 'With monitors')}</label>`;
+      if (c.ent || it.kind === 'desk' || it.kind === 'cdesk' || it.entity) h += inp('entity', it.entity, T('Gerät in Home Assistant (Entität)', 'Home Assistant entity'), 'f_ient', 'text', `placeholder="${c.ent || 'switch'}.…" list="dl_item"`) + dl('dl_item', 'media_player|switch|input_boolean|light|climate|fan');
+      if (it.kind === 'fireplace') h += `<p class="note">${T('Ohne Entität brennt das Feuer immer. Mit Entität nur, wenn das Gerät an ist.', 'Without an entity the fire is always lit. With one, only while the device is on.')}</p>`;
       h += `<div class="acts"><button type="button" class="btn small" data-act="dup">${T('Duplizieren', 'Duplicate')}</button><button type="button" class="btn small danger" data-act="del">${T('Löschen', 'Delete')}</button></div>`;
     } else if (sel.type === 'device') {
       const d = DV(sel.id), dom = DEVDEF[d.kind].ent;
       h += `<div class="ph"><h2>${esc(d.name || N(DEVDEF[d.kind].n))}</h2><span class="tag">${T('Gerät', 'Device')}</span></div>` + sel3('kind', Object.fromEntries(Object.entries(DEVDEF).map(([k, v]) => [k, N(v.n)])), d.kind, T('Art', 'Type'), 'f_dkind') + inp('name', d.name, T('Name', 'Name'), 'f_dname');
-      h += inp('entity', d.entity, T('Entität in Home Assistant', 'Home Assistant entity'), 'f_dent', 'text', `placeholder="${dom}.…" list="dl_dev"`) + dl('dl_dev', dom === 'light' ? 'light|switch' : 'sensor');
+      h += inp('entity', d.entity, T('Entität in Home Assistant', 'Home Assistant entity'), 'f_dent', 'text', `placeholder="${dom}.…" list="dl_dev"`) + dl('dl_dev', dom === 'light' ? 'light|switch' : dom);
+      if (d.kind === 'motion') h += `<p class="note">${T('Erkennt der Melder Bewegung, pulsiert der Raum im Modell violett. Bewegungsmelder aus dem Bereich des Raums werden auch ohne Symbol erkannt.', 'When the sensor detects motion, the room pulses violet in the model. Motion sensors in the room’s area are detected even without a symbol.')}</p>`;
       if (d.kind === 'light') h += nInp('h', d.h ?? 2.1, T('Höhe der Leuchte (m)', 'Light height (m)'), 'f_dh');
       h += `<div class="acts"><button type="button" class="btn small" data-act="dup">${T('Duplizieren', 'Duplicate')}</button><button type="button" class="btn small danger" data-act="del">${T('Löschen', 'Delete')}</button></div>`;
     } else if (sel.type === 'bg') {
@@ -616,7 +689,8 @@ function hbCreatePlanner(root, opts) {
       if (f === 'vx' || f === 'vy') { if (!final) return; const q = o.pts[sel.vi]; setLinked(linkedAt(q), f === 'vx' ? [r2(v), q[1]] : [q[0], r2(v)]); commit(true); return; }
       if (f === 'type') { const old = N(RTYPES[o.type]); o.type = v; if (/^(Raum|Room) \d+$/.test(o.name) || o.name === old) o.name = N(RTYPES[v]); o.floor = RTYPE_FLOOR[v]; o.outdoor = v === 'balkon' || v === 'terrasse'; commit(true); return; }
       o[f] = v; if (f === 'name') { req(4); if (final) { commit(); const h2 = right.querySelector('.ph h2'); if (h2) h2.textContent = v; } return; }
-      commit(f === 'outdoor' || f === 'floor'); return;
+      if (f === 'wall') o.wall = /^#[0-9a-f]{6}$/i.test(v) && v.toLowerCase() !== '#ecebe7' ? v.toLowerCase() : '';
+      commit(f === 'outdoor' || f === 'floor' || f === 'wall' || f === 'area'); return;
     }
     if (sel.type === 'opening') {
       if (f === 'type') { o.type = v; const D = OPDEF[v]; o.w = D.w; o.h = D.h; o.sill = D.sill ?? 0; commit(true); return; }
@@ -635,6 +709,15 @@ function hbCreatePlanner(root, opts) {
       o[f] = v; if (final) commit(f === 'name');
     }
   }
+  function addEntity() {
+    const o = selObj(), el = $('#f_eadd'); if (!o || sel?.type !== 'room' || !el) return;
+    const e = el.value.trim();
+    if (!e) { el.focus(); return; }
+    if (!hass?.states?.[e]) { toast(T('Diese Entität gibt es in Home Assistant nicht.', 'That entity does not exist in Home Assistant.')); el.focus(); return; }
+    o.add = [...new Set([...(o.add || []), e])]; o.hide = (o.hide || []).filter(x => x !== e); commit(true);
+    toast(T(`${fname(e)} wird jetzt in diesem Raum angezeigt.`, `${fname(e)} now shows in this room.`));
+  }
+  on(right, 'keydown', e => { if (e.target.id === 'f_eadd' && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addEntity(); } });
   on(right, 'input', e => { if (e.target.dataset.f && (e.target.type === 'range' || e.target.dataset.f === 'name')) applyField(e.target, false); });
   on(right, 'change', e => { if (e.target.dataset.f) applyField(e.target, true); });
   on(right, 'pointerover', e => { const w = e.target.closest('[data-edge]'), nh = w && sel?.type === 'room' ? { room: sel.id, i: +w.dataset.edge } : null; if (JSON.stringify(nh) !== JSON.stringify(hoverEdge)) { hoverEdge = nh; req(4); } });
@@ -647,6 +730,12 @@ function hbCreatePlanner(root, opts) {
     if (act === 'dup') return duplicateSel();
     if (act === 'vdel') { if (deleteVertex(o, sel.vi)) { sel.vi = null; commit(true); } return; }
     if (act === 'edgeopen') { const i = +b.dataset.i, s = new Set(o.open || []); s.has(i) ? s.delete(i) : s.add(i); o.open = [...s].sort((a, c) => a - c); commit(true); return; }
+    if (act === 'floor') { o.floor = b.dataset.k; commit(true); return; }
+    if (act === 'wall') { o.wall = b.dataset.c || ''; commit(true); return; }
+    if (act === 'ehide') { const e = b.dataset.e, s = new Set(o.hide || []); s.has(e) ? s.delete(e) : s.add(e); o.hide = [...s]; commit(true); return; }
+    if (act === 'eshowall') { o.hide = []; commit(true); return; }
+    if (act === 'eremove') { o.add = (o.add || []).filter(x => x !== b.dataset.e); commit(true); return; }
+    if (act === 'eadd') return addEntity();
     if (act === 'flipHinge') { o.flipHinge = !o.flipHinge; commit(); return; }
     if (act === 'flipSide') { o.flipSide = !o.flipSide; commit(); return; }
     if (act === 'rot') { o.rot = ((o.rot + +b.dataset.d) % 360 + 360) % 360; commit(true); return; }

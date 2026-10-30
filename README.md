@@ -11,7 +11,12 @@ Draw your own floor plan directly in Home Assistant with drag & drop – no Blen
 - **3D view of your home** with smooth camera flights into each room, room labels and a room bar
 - **Live device states**: lights (brightness and colour), covers, locks, media players, climate, switches and fans
 - **Control panel per room** – devices come from the floor plan and from the linked Home Assistant **area**
+- **Choose what each room shows** – hide single devices of an area with one click or add devices from other areas
+- **Window and door contacts** – open windows glow orange, doors swing open and closed in the model
+- **Motion and presence** – rooms pulse softly while a motion or presence sensor is on
 - **Floor plan editor** built into the card configuration: draw rooms, drag walls and corners, drop doors, windows, furniture and lights
+- **16 floors and interior wall colours per room** – oak, walnut, herringbone, marble, concrete, tiles, carpet and more
+- **Over 40 pieces of furniture** – including corner sofa, fireplace, piano, kitchen island, crib, parasol and barbecue
 - Walls are generated automatically from the room outlines, including open transitions between rooms
 - Trace an image of your floor plan and set the scale with a known distance
 - Day and night follow `sun.sun`, scenes are available from the overview
@@ -37,8 +42,10 @@ Draw your own floor plan directly in Home Assistant with drag & drop – no Blen
 2. Click **Open floor plan editor**
 3. Load the sample or start with an empty plan, then draw your rooms
 4. Select a room and pick its **Home Assistant area** – all lights, covers, switches and sensors of that area appear in the room
-5. Optionally place lights where they really are and link them to an entity, so they glow at the right spot
-6. Click **Apply**, then **Save**
+5. Under **Devices in this room** use the eye to hide what you don't want on the card, or add devices from other areas
+6. Optionally place lights where they really are and link them to an entity, so they glow at the right spot
+7. Select a window or door and set its **contact sensor** to see it open in the model
+8. Click **Apply**, then **Save**
 
 For a full-screen view, use a view of type **Panel** and set the height to **Screen height**.
 
@@ -78,11 +85,22 @@ three_url: /local/homeboo/three.module.js
 
 The plan is stored in the card configuration and is included in Home Assistant backups. A traced background image stays in your browser only.
 
+## Changelog
+
+### 0.2.0
+- Show or hide single devices per room, add devices from other areas
+- Window and door contact sensors with 3D effects, motion and presence highlighting
+- 16 floor types, interior wall colours per room
+- 15 new pieces of furniture, spotlights and motion sensors in the editor
+- Extra sensor values (for example CO₂ or power) show up as chips in the room
+
+### 0.1.1
+- Fixed the card staying empty, overview now fills the available space
+
 ## Roadmap
 
-- More floor types, wall colours and furniture
 - Multiple floors
-- Window and door contact sensors, motion and presence effects
+- Reorder devices in a room
 - Bundled build without CDN
 
 ## License
@@ -98,4 +116,5 @@ MIT
 1. In HACS unter **Benutzerdefinierte Repositories** diese Adresse mit Typ **Dashboard** hinzufügen und installieren
 2. Dashboard bearbeiten, Karte **HomeBoo 3D** hinzufügen
 3. **Grundriss-Editor öffnen**, Räume zeichnen, jedem Raum einen **Bereich** aus Home Assistant zuordnen
-4. **Übernehmen** und **Speichern**
+4. Unter **Geräte in diesem Raum** mit dem Auge ausblenden, was nicht in der Karte erscheinen soll
+5. **Übernehmen** und **Speichern**

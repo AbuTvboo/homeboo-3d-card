@@ -37,7 +37,13 @@ const HB_ICON = {
   sensor: hbIc('M12 12m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M7 7a7 7 0 0 0 0 10M17 7a7 7 0 0 1 0 10'),
 };
 const HB_GHOST = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5a7.5 7.5 0 0 0-7.5 7.5v10.6c0 .5.6.8 1 .5l1.9-1.4 2 1.5c.3.2.7.2 1 0l1.6-1.3 1.6 1.3c.3.2.7.2 1 0l2-1.5 1.9 1.4c.4.3 1 0 1-.5V10A7.5 7.5 0 0 0 12 2.5z"/><circle cx="9.3" cy="10.3" r="1.35" fill="#04171c"/><circle cx="14.7" cy="10.3" r="1.35" fill="#04171c"/></svg>';
-const HB_DOMAINS = ['light', 'switch', 'input_boolean', 'fan', 'cover', 'media_player', 'lock', 'climate'];
+Object.assign(HB_ICON, {
+  motion: hbIc('M13 4.5a1.5 1.5 0 1 0 0-.01M9.5 21l2-5.5 2.5 2.5V21M8 12.5l2-4 3 .5 2.5 3 2.5.5M10 8.5 9 13l2.5 2.5M6 9.5l3-1'),
+  contact: hbIc('M5 21V4h10v17M15 6l4-1.5V21M3 21h18M11.5 12.5h.01'),
+  eye: hbIc('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z'),
+  eyeOff: hbIc('M3 3l18 18M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8M6.3 7.3A16.5 16.5 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.4-1.1M9.9 10a2.5 2.5 0 0 0 3.6 3.5'),
+  fire: hbIc('M12 21a6 6 0 0 0 6-6c0-3.5-2.5-5.5-3.5-8.5-1 2-2 3-3 3.5C11.5 7.5 10 5 9.5 3 8 6 6 9 6 15a6 6 0 0 0 6 6zM12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z'),
+});
 const HB_OFF = new Set(['off', 'unavailable', 'unknown', 'standby', 'idle', 'closed', 'locked']);
 
 const HB_BASE_CSS = `
@@ -55,6 +61,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .lbl{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 9px 4px 8px;border-radius:999px;background:rgba(9,12,24,.72);border:1px solid var(--hb-line);color:var(--hb-fg);font:600 11px/1.2 var(--hb-font);letter-spacing:.02em;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:border-color .2s,color .2s,box-shadow .2s,opacity .25s}
 .lbl::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--hb-faint)}
 .lbl.lit::before{background:var(--hb-lamp);box-shadow:0 0 8px var(--hb-lamp)}
+.lbl.move::before{background:#b48cff;box-shadow:0 0 9px #b48cff;animation:hbpulse 1.6s ease-in-out infinite}
+.lbl.warn{border-color:rgba(255,178,92,.55)}
+.lbl.warn::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--hb-warn);box-shadow:0 0 8px var(--hb-warn)}
+@keyframes hbpulse{50%{opacity:.35;transform:scale(.7)}}
 .lbl.hot,.lbl:hover{border-color:var(--hb-accent);color:var(--hb-accent);box-shadow:0 0 16px rgba(126,240,255,.28)}
 .lbl.off{opacity:0;pointer-events:none}
 .ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;gap:12px;padding:14px}
@@ -93,6 +103,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid var(--hb-line);font:500 12px var(--hb-mono);font-variant-numeric:tabular-nums}
 .chip svg{width:14px;height:14px;color:var(--hb-muted)}
 .chip.lamp{color:var(--hb-lamp)}
+.chip.move{color:#c9b2ff;border-color:rgba(180,140,255,.4)}.chip.move svg{color:#b48cff}
+.chip.warn{color:var(--hb-warn);border-color:rgba(255,178,92,.45)}.chip.warn svg{color:var(--hb-warn)}
 .sect{display:flex;flex-direction:column;gap:8px}
 .sect h3{margin:0;font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--hb-faint)}
 .devs{display:flex;flex-direction:column;gap:8px}
@@ -147,7 +159,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .rr:hover{background:rgba(255,255,255,.045)}
 .rr svg{width:18px;height:18px;color:var(--hb-muted)}
 .rr b{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rr span{font:500 12px var(--hb-mono);color:var(--hb-muted)}
+.rr span{display:flex;align-items:center;gap:5px;font:500 12px var(--hb-mono);color:var(--hb-muted)}
+.rr span em{display:grid;place-items:center}.rr span em svg{width:14px;height:14px}
+.rr span em.w svg{color:var(--hb-warn)}.rr span em.m svg{color:#b48cff;animation:hbpulse 1.6s ease-in-out infinite}
 .rr i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.12)}
 .rr i.lit{background:var(--hb-lamp);box-shadow:0 0 8px var(--hb-lamp)}
 .note{margin:0;padding:10px 12px;border-radius:12px;border:1px dashed var(--hb-line2);font-size:12px;line-height:1.5;color:var(--hb-muted)}
@@ -231,58 +245,36 @@ class HBViewer {
     this.ensureScene().then(() => { this.rebuildIfNeeded(true); this.start(); }).catch(() => {});
   }
   /* ---------- Daten aus Home Assistant ---------- */
-  areaId(room) {
-    if (!room.area || !this.hass?.areas) return null;
-    const A = this.hass.areas; if (A[room.area]) return room.area;
-    const want = room.area.trim().toLowerCase();
-    const hit = Object.values(A).find(a => (a.name || '').toLowerCase() === want || (a.area_id || '').toLowerCase() === want);
-    return hit ? hit.area_id : null;
-  }
   cache() {
-    const h = this.hass || {};
-    if (!this._cc || this._cc.plan !== this.plan || this._cc.e !== h.entities || this._cc.a !== h.areas || this._cc.d !== h.devices) this._cc = { plan: this.plan, e: h.entities, a: h.areas, d: h.devices, ctl: new Map(), area: new Map() };
+    const h = this.hass || {}, C = this._cc;
+    if (C && C.h === h && C.plan === this.plan) return C;
+    const n = h.states ? Object.keys(h.states).length : 0;
+    if (!C || C.plan !== this.plan || C.e !== h.entities || C.a !== h.areas || C.d !== h.devices || C.n !== n || Date.now() - C.t > 60000) this._cc = { plan: this.plan, e: h.entities, a: h.areas, d: h.devices, n, t: Date.now(), vis: new Map(), h };
+    else C.h = h;
     return this._cc;
   }
-  areaEntities(room) {
-    const C = this.cache(); if (C.area.has(room.id)) return C.area.get(room.id);
-    const out = this._areaEntities(room); C.area.set(room.id, out); return out;
+  /* Alle sichtbaren Entitäten eines Raums (im Editor ausgeblendete fehlen) */
+  ents(room) {
+    if (!this.hass) return [];
+    const C = this.cache(); if (C.vis.has(room.id)) return C.vis.get(room.id);
+    const hide = new Set(room.hide || []), out = hbRoomEntities(this.plan, room, this.hass).filter(c => !hide.has(c.eid));
+    C.vis.set(room.id, out); return out;
   }
-  _areaEntities(room) {
-    const id = this.areaId(room), h = this.hass; if (!id || !h?.entities) return [];
-    const out = [];
-    for (const e of Object.values(h.entities)) {
-      if (e.hidden || e.entity_category) continue;
-      const a = e.area_id || (e.device_id && h.devices?.[e.device_id]?.area_id);
-      if (a === id && h.states[e.entity_id]) out.push(e.entity_id);
-    }
-    return out;
-  }
-  controls(room) {
-    const C = this.cache(); if (this.hass && C.ctl.has(room.id)) return C.ctl.get(room.id);
-    const out = this._controls(room); if (this.hass) C.ctl.set(room.id, out); return out;
-  }
-  _controls(room) {
-    const p = this.plan, list = [], seen = new Set();
-    const push = (eid, src) => { if (!eid || seen.has(eid) || !this.hass?.states[eid]) return; const d = eid.split('.')[0]; if (!HB_DOMAINS.includes(d)) return; seen.add(eid); list.push({ eid, d, src }); };
-    for (const dv of p.devices) if (dv.entity && inPoly(room.pts, dv.x, dv.y)) push(dv.entity, 'dev');
-    for (const it of p.items) if (it.entity && inPoly(room.pts, it.x, it.y)) push(it.entity, 'item');
-    for (const o of p.openings) if (o.entity && o.room === room.id) push(o.entity, 'op');
-    for (const e of this.areaEntities(room)) push(e, 'area');
-    return list;
-  }
+  controls(room) { return this.ents(room).filter(c => c.kind === 'ctl'); }
   roomSensors(room) {
     const h = this.hass; if (!h) return {};
-    const cand = [...this.plan.devices.filter(d => d.kind === 'sensor' && d.entity && inPoly(room.pts, d.x, d.y)).map(d => d.entity), ...this.areaEntities(room).filter(e => e.startsWith('sensor.'))];
-    const out = {};
-    for (const eid of cand) {
-      const s = h.states[eid]; if (!s || isNaN(parseFloat(s.state))) continue;
-      const dc = s.attributes.device_class, unit = s.attributes.unit_of_measurement || '';
-      if (!out.temp && (dc === 'temperature' || /°/.test(unit))) out.temp = { v: parseFloat(s.state), u: unit || '°C' };
-      if (!out.hum && (dc === 'humidity' || (unit === '%' && /hum|feucht/i.test(eid)))) out.hum = { v: parseFloat(s.state), u: '%' };
+    const out = { vals: [] };
+    for (const c of this.ents(room)) {
+      const s = h.states[c.eid]; if (!s) continue; const v = parseFloat(s.state);
+      if (c.kind === 'temp') { if (!out.temp && !isNaN(v)) out.temp = { v, u: s.attributes.unit_of_measurement || '°C' }; }
+      else if (c.kind === 'hum') { if (!out.hum && !isNaN(v)) out.hum = { v, u: '%' }; }
+      else if (c.kind === 'value' && s.state !== 'unavailable' && s.state !== 'unknown') out.vals.push({ eid: c.eid, s });
     }
     return out;
   }
   roomLit(room) { const h = this.hass; return this.controls(room).some(c => c.d === 'light' && h.states[c.eid]?.state === 'on'); }
+  roomMotion(room) { const h = this.hass; return this.ents(room).some(c => c.kind === 'motion' && h.states[c.eid]?.state === 'on'); }
+  roomOpen(room) { const h = this.hass; return this.ents(room).filter(c => c.kind === 'contact' && h.states[c.eid]?.state === 'on'); }
   /* ---------- 3D aufbauen und mit Zuständen füttern ---------- */
   buildOptions() {
     const p = this.plan, devEnt = new Set(p.devices.map(d => d.entity).filter(Boolean)), roomLights = [], shutters = new Set();
@@ -317,6 +309,7 @@ class HBViewer {
       if (free.length) { const pos = this.coverPos(S(free[0].eid)); for (const o of p.openings) if (o.room === r.id && !o.entity) for (const s of reg.shutters.get(o.id) || []) s.target = 1 - pos / 100; }
     }
     for (const o of p.openings) {
+      if (o.contact) { const open = S(o.contact)?.state === 'on'; const c = reg.contacts?.get(o.id); if (c) c.target = open ? 1 : 0; const dd = reg.doors?.get(o.id); if (dd) dd.target = open ? 1 : 0; }
       if (!o.entity) continue; const s = S(o.entity);
       if (o.entity.startsWith('cover.')) for (const sh of reg.shutters.get(o.id) || []) sh.target = 1 - this.coverPos(s) / 100;
       if (o.entity.startsWith('lock.')) { const L = reg.locks.get(o.id); if (L) L.target = s?.state === 'locked' ? 1 : s?.state === 'unlocked' || s?.state === 'open' ? 0 : 0.5; }
@@ -325,7 +318,10 @@ class HBViewer {
       if (!it.entity) continue; const s = S(it.entity), on = !!s && !['off', 'unavailable', 'unknown', 'standby'].includes(s.state);
       const sc = reg.screens.get(it.id); if (sc) { sc.target = on ? 1 : 0; if (it.entity.startsWith('media_player.')) { const pic = on && (s.state === 'playing' || s.state === 'paused') ? s.attributes.entity_picture : null; this.sc.loadPicture(it.id, pic ? (this.hass.hassUrl ? this.hass.hassUrl(pic) : pic) : null); } }
       const dr = reg.drums.get(it.id); if (dr) dr.target = on ? 1 : 0;
+      const fi = reg.fires?.get(it.id); if (fi) fi.target = on && s.state !== 'off' ? 1 : 0;
     }
+    for (const r of p.rooms) { const m = reg.rooms.get(r.id)?.motion; if (m) m.target = this.roomMotion(r) ? 1 : 0; }
+    for (const d of p.devices) { if (d.kind !== 'motion') continue; const m = reg.motionDevs?.get(d.id); if (m) m.target = S(d.entity)?.state === 'on' ? 1 : 0; }
   }
   coverPos(s) { if (!s) return 100; if (s.attributes.current_position != null) return s.attributes.current_position; return s.state === 'closed' ? 0 : 100; }
   applyNight() {
@@ -344,7 +340,7 @@ class HBViewer {
   }
   stateSig() {
     const h = this.hass; if (!h) return '';
-    const ids = new Set(); for (const r of this.plan.rooms) for (const c of this.controls(r)) ids.add(c.eid);
+    const ids = new Set(); for (const r of this.plan.rooms) for (const c of this.ents(r)) ids.add(c.eid);
     if (!this.focus) Object.keys(h.states).filter(e => e.startsWith('scene.')).slice(0, 6).forEach(e => ids.add(e));
     let s = this.focus || '-'; for (const id of ids) { const st = h.states[id]; s += '|' + id + ':' + (st ? st.last_updated + st.state : ''); }
     for (const r of this.plan.rooms) { const x = this.roomSensors(r); s += '|' + (x.temp?.v ?? '') + (x.hum?.v ?? ''); }
@@ -403,7 +399,8 @@ class HBViewer {
       rooms.map(r => `<button class="nb${this.hass && this.roomLit(r) ? ' lit' : ''}" type="button" data-room="${r.id}" aria-label="${esc(r.name)}" title="${esc(r.name)}">${HB_ICON[r.type] || HB_ICON.sonst}<span class="t">${esc(r.name)}</span></button>`).join('');
     const box = this.el.labels; box.innerHTML = ''; this.labels = {};
     for (const r of rooms) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : ''); b.textContent = r.name;
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = r.name;
+      b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : '') + (this.hass && this.roomMotion(r) ? ' move' : '') + (this.hass && this.roomOpen(r).length ? ' warn' : '');
       b.addEventListener('click', () => this.go(r.id)); b.addEventListener('pointerenter', () => { this.hover = r.id; }); b.addEventListener('pointerleave', () => { if (this.hover === r.id) this.hover = null; });
       box.appendChild(b); this.labels[r.id] = b;
     }
@@ -460,20 +457,27 @@ class HBViewer {
       const temps = rooms.filter(r => !r.outdoor).map(r => this.roomSensors(r).temp?.v).filter(v => v != null);
       const lock = all.find(c => c.d === 'lock'), ls = lock && h.states[lock.eid];
       const area = rooms.filter(r => !r.outdoor).reduce((s, r) => s + Math.abs(polyArea(r.pts)), 0);
+      const contacts = h ? rooms.flatMap(r => this.ents(r).filter(c => c.kind === 'contact')) : [], openN = new Set(contacts.filter(c => h.states[c.eid]?.state === 'on').map(c => c.eid)).size;
       html += head(HB_ICON.home, this.config.title || this.plan.name, `${rooms.length} ${T('Räume', 'rooms')} · ≈ ${Math.round(area)} m²`);
-      html += `<div class="stats"><div class="stat lamp"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></div>`;
-      html += temps.length ? `<div class="stat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></div>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`;
-      if (ls) html += `<div class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></div>`;
-      const sun = h?.states['sun.sun']; if (sun) html += `<div class="stat"><span>${T('Sonne', 'Sun')}</span><b>${sun.state === 'above_horizon' ? T('Tag', 'Day') : T('Nacht', 'Night')}</b></div>`;
-      html += `</div>`;
+      const st = [`<div class="stat lamp"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></div>`];
+      st.push(temps.length ? `<div class="stat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></div>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`);
+      if (ls) st.push(`<div class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></div>`);
+      if (contacts.length) st.push(`<div class="stat ${openN ? 'warn' : 'ok'}"><span>${T('Fenster & Türen', 'Windows & doors')}</span><b>${openN ? `${openN} ${T('offen', 'open')}` : T('Alle zu', 'All shut')}</b></div>`);
+      const sun = h?.states['sun.sun']; if (sun) st.push(`<div class="stat"><span>${T('Sonne', 'Sun')}</span><b>${sun.state === 'above_horizon' ? T('Tag', 'Day') : T('Nacht', 'Night')}</b></div>`);
+      html += `<div class="stats">${st.slice(0, 4).join('')}</div>`;
       const scenes = h ? Object.keys(h.states).filter(e => e.startsWith('scene.')).slice(0, 6) : [];
       if (scenes.length) html += `<div class="sect"><h3>${T('Szenen', 'Scenes')}</h3><div class="scenes">${scenes.map(e => `<button type="button" class="scene" data-act="scene" data-e="${e}">${HB_ICON.scene}<span>${esc(this.name(e))}</span></button>`).join('')}</div></div>`;
-      html += `<div class="sect"><h3>${T('Räume', 'Rooms')}</h3><div class="rlist">${rooms.map(r => { const t = h ? this.roomSensors(r).temp : null; return `<button type="button" class="rr" data-act="room" data-room="${r.id}">${HB_ICON[r.type] || HB_ICON.sonst}<b>${esc(r.name)}</b><span>${t ? fmtNum(t.v, 1) + ' °C' : ''}</span><i class="${h && this.roomLit(r) ? 'lit' : ''}"></i></button>`; }).join('')}</div></div>`;
+      html += `<div class="sect"><h3>${T('Räume', 'Rooms')}</h3><div class="rlist">${rooms.map(r => { const t = h ? this.roomSensors(r).temp : null, mv = h && this.roomMotion(r), op = h ? this.roomOpen(r).length : 0; return `<button type="button" class="rr" data-act="room" data-room="${r.id}">${HB_ICON[r.type] || HB_ICON.sonst}<b>${esc(r.name)}</b><span>${op ? `<em class="w" title="${T('Offen', 'Open')}">${HB_ICON.contact}</em>` : ''}${mv ? `<em class="m" title="${T('Bewegung', 'Motion')}">${HB_ICON.motion}</em>` : ''}${t ? fmtNum(t.v, 1) + ' °C' : ''}</span><i class="${h && this.roomLit(r) ? 'lit' : ''}"></i></button>`; }).join('')}</div></div>`;
     } else {
       const r = rooms.find(x => x.id === this.focus); if (!r) { this.focus = null; return this.renderPanel(animate); }
       const ctl = h ? this.controls(r) : [], s = h ? this.roomSensors(r) : {};
       html += head(HB_ICON[r.type] || HB_ICON.sonst, r.name, `≈ ${Math.round(Math.abs(polyArea(r.pts)))} m² · ${ctl.length} ${ctl.length === 1 ? T('Gerät', 'device') : T('Geräte', 'devices')}`, true);
-      const chips = [s.temp ? `<span class="chip">${HB_ICON.thermo}${fmtNum(s.temp.v, 1)} ${esc(s.temp.u)}</span>` : '', s.hum ? `<span class="chip">${HB_ICON.drop}${Math.round(s.hum.v)} %</span>` : '', h && this.roomLit(r) ? `<span class="chip lamp">${HB_ICON.bulb}${T('Licht an', 'Lights on')}</span>` : ''].join('');
+      const open = h ? this.roomOpen(r) : [];
+      const chips = [s.temp ? `<span class="chip">${HB_ICON.thermo}${fmtNum(s.temp.v, 1)} ${esc(s.temp.u)}</span>` : '', s.hum ? `<span class="chip">${HB_ICON.drop}${Math.round(s.hum.v)} %</span>` : '',
+        ...(s.vals || []).map(x => { const v = parseFloat(x.s.state), u = x.s.attributes.unit_of_measurement || ''; return `<span class="chip" title="${esc(this.name(x.eid))}">${HB_ICON.sensor}${isNaN(v) ? esc(x.s.state) : esc(fmtNum(v, Number.isInteger(v) ? 0 : 1).replace(/[.,]0$/, ''))}${u ? ' ' + esc(u) : ''}</span>`; }),
+        h && this.roomLit(r) ? `<span class="chip lamp">${HB_ICON.bulb}${T('Licht an', 'Lights on')}</span>` : '',
+        h && this.roomMotion(r) ? `<span class="chip move">${HB_ICON.motion}${T('Bewegung', 'Motion')}</span>` : '',
+        open.length ? `<span class="chip warn">${HB_ICON.contact}${open.length === 1 ? esc(this.name(open[0].eid)) + ' ' + T('offen', 'open') : open.length + ' ' + T('offen', 'open')}</span>` : ''].join('');
       if (chips) html += `<div class="chips">${chips}</div>`;
       html += ctl.length ? `<div class="devs">${ctl.map(c => this.card(c)).join('')}</div>` : `<p class="note">${T('Diesem Raum sind noch keine Geräte zugeordnet. Verknüpfe ihn im Grundriss-Editor mit einem <b>Bereich</b> aus Home Assistant oder setze Lampen mit Entität.', 'No devices in this room yet. Link it to a Home Assistant <b>area</b> in the floor plan editor or place lights with an entity.')}</p>`;
     }
