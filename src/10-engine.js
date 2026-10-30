@@ -1,5 +1,5 @@
 /*! HomeBoo 3D Card | MIT License */
-const HB_VERSION = '0.3.1';
+const HB_VERSION = '0.4.0';
 const HB_SUPPORT_URL = 'https://paypal.me/sebagueven';
 const HB_THREE_DEFAULT = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const hbThreeCache = new Map();
@@ -159,7 +159,7 @@ function normalizePlan(p) {
   out.openings = (Array.isArray(p.openings) ? p.openings : []).filter(o => OPDEF[o.type]).map(o => ({ id: o.id || uid('o'), flipHinge: false, flipSide: false, entity: '', contact: '', sill: OPDEF[o.type].sill ?? 0, h: OPDEF[o.type].h, w: OPDEF[o.type].w, ...o }));
   out.items = (Array.isArray(p.items) ? p.items : []).filter(i => CAT[i.kind]).map(i => ({ id: i.id || uid('i'), rot: 0, w: CAT[i.kind].w, d: CAT[i.kind].d, ...i }));
   out.devices = (Array.isArray(p.devices) ? p.devices : []).filter(d => DEVDEF[d.kind]).map(d => ({ id: d.id || uid('d'), name: '', entity: '', ...d }));
-  out.icons = Object.fromEntries(Object.entries(p.icons && typeof p.icons === 'object' ? p.icons : {}).filter(([k, v]) => k.includes('.') && typeof v === 'string' && v.length < 400000 && /^(data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]|\/|https?:\/\/)/.test(v)));
+  out.icons = Object.fromEntries(Object.entries(p.icons && typeof p.icons === 'object' ? p.icons : {}).filter(([k, v]) => k.includes('.') && typeof v === 'string' && v.length < 400000 && /^(hb:[a-z0-9-]+$|none$|data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]|\/|https?:\/\/)/.test(v)));
   out.wallHeight = clamp(+out.wallHeight || 2.55, 2, 4);
   delete out.bg;
   return out;

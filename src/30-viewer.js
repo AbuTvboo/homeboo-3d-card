@@ -561,7 +561,7 @@ class HBViewer {
     this.el.view.innerHTML = `${HB_ICON.thermo}<span class="t">${vt ? T('Temperatur', 'Temperature') : T('Ansicht', 'View')}</span>`; this.el.view.setAttribute('aria-label', T('Temperatur-Ansicht', 'Temperature view'));
   }
   /* Eigenes Bild eines Geräts (im Editor hochgeladen) */
-  img(eid) { const u = this.plan?.icons?.[eid]; return u ? `<img src="${esc(u)}" alt="" draggable="false">` : ''; }
+  img(eid) { const u = hbIconSrc(this.plan, this.hass, eid, this.config.auto_icons !== 'off'); return u ? `<img src="${esc(u)}" alt="" draggable="false">` : ''; }
   name(eid) { return this.hass?.states[eid]?.attributes.friendly_name || eid; }
   card(c) {
     const s = this.hass.states[c.eid], d = c.d, na = !s || s.state === 'unavailable';

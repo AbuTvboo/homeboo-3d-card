@@ -126,6 +126,17 @@ textarea.inp{height:150px;padding:10px;font:400 11px/1.45 var(--hb-mono);resize:
 .wc.custom{background:conic-gradient(#ff7a8a,#ffc98a,#74e3a8,#7ef0ff,#b48cff,#ff7a8a);overflow:hidden}
 .wc.custom.on{background:var(--c)}
 .wc.custom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+.ei.auto{border-style:dashed;border-color:rgba(126,240,255,.25)}
+.ipk{width:min(760px,100%);max-height:min(86vh,820px);gap:12px}
+.ipk-h{display:grid;grid-template-columns:56px minmax(0,1fr) auto;align-items:center;gap:12px}
+.ipk-h h2{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ipk-h p{font:500 11.5px var(--hb-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ipk-cur{width:56px;height:56px;border-radius:14px;background:#141a2e;border:1px solid var(--hb-line);display:grid;place-items:center}.ipk-cur img{width:44px;height:44px;object-fit:contain}
+.ipk-body{overflow:auto;min-height:0;max-height:56vh;padding-right:4px;scrollbar-width:thin;scrollbar-color:var(--hb-line2) transparent}
+.ipk-body h3{margin:12px 0 8px;font-weight:600;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--hb-faint)}.ipk-body h3:first-child{margin-top:0}
+.ipk-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
+.ipk-i{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px 7px;border-radius:12px;border:1px solid var(--hb-line);background:#141a2e;color:var(--hb-muted);font-weight:600;font-size:10.5px;line-height:1.2;cursor:pointer;min-width:0}
+.ipk-i img{width:52px;height:52px;object-fit:contain}.ipk-i span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ipk-i:hover{color:var(--hb-fg);border-color:rgba(126,240,255,.45)}.ipk-i.on{border-color:var(--hb-accent);color:var(--hb-accent);background:var(--hb-accent-soft)}
 [hidden]{display:none!important}
 @media (max-width:1180px){.main{grid-template-columns:210px minmax(0,1fr) 256px}.views.m-split{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
 @media (max-width:899px){
@@ -608,10 +619,40 @@ function hbCreatePlanner(root, opts) {
     return { light: HB_ICON.bulb, cover: HB_ICON.blinds, media_player: HB_ICON.tv, lock: HB_ICON.lock, climate: HB_ICON.thermo, fan: HB_ICON.fan }[c.d] || HB_ICON.power;
   }
   /* Symbol oder eigenes Bild – antippen zum Ändern */
+  const autoIcons = opts.autoIcons !== false;
   function iconBtn(eid, fallback) {
-    const u = plan.icons?.[eid];
-    return `<span class="eiw"><button type="button" class="ei${u ? ' pic' : ''}" data-act="eimg" data-e="${esc(eid)}" title="${u ? T('Anderes Bild wählen', 'Choose another picture') : T('Eigenes Bild wählen (z. B. ein Foto deiner Lampe)', 'Choose your own picture (e.g. a photo of your lamp)')}" aria-label="${T('Bild für', 'Picture for')} ${esc(fname(eid))}">${u ? `<img src="${esc(u)}" alt="">` : fallback}</button>${u ? `<button type="button" class="eix" data-act="eimgdel" data-e="${esc(eid)}" title="${T('Bild entfernen', 'Remove picture')}" aria-label="${T('Bild entfernen', 'Remove picture')}">×</button>` : ''}</span>`;
+    const own = plan.icons?.[eid], src = hbIconSrc(plan, hass, eid, autoIcons), set = own && own !== 'none';
+    const tip = set ? T('Symbol ändern', 'Change symbol') : src ? T('Automatisch gewählt – antippen zum Ändern', 'Picked automatically – tap to change') : T('Symbol oder eigenes Bild wählen', 'Choose a symbol or your own picture');
+    return `<span class="eiw"><button type="button" class="ei${src ? ' pic' : ''}${src && !set ? ' auto' : ''}" data-act="eimg" data-e="${esc(eid)}" title="${tip}" aria-label="${T('Symbol für', 'Symbol for')} ${esc(fname(eid))}">${src ? `<img src="${esc(src)}" alt="">` : fallback}</button>${set ? `<button type="button" class="eix" data-act="eimgdel" data-e="${esc(eid)}" title="${T('Zurück auf automatisch', 'Back to automatic')}" aria-label="${T('Symbol zurücksetzen', 'Reset symbol')}">×</button>` : ''}</span>`;
   }
+  /* Symbol-Auswahl: eingebaute Symbole, Suche, Vorschläge, eigenes Bild */
+  let ipk = null;
+  const normTxt = t => String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+  function openIconPicker(eid) {
+    ipk = { eid, q: '' };
+    modal.innerHTML = `<div class="dlg ipk" role="dialog" aria-modal="true" aria-label="${T('Symbol wählen', 'Choose a symbol')}"><div class="ipk-h"><span class="ipk-cur" id="ipkCur"></span><div><h2>${esc(fname(eid))}</h2><p>${esc(eid)}</p></div><button type="button" class="btn icon" data-m="close" aria-label="${T('Schließen', 'Close')}">${HB_PIC.x}</button></div>
+      <input class="inp" id="ipkSearch" placeholder="${T('Suchen, z. B. Lampe, Kaffee, Rollladen …', 'Search, e.g. lamp, coffee, blind …')}" autocomplete="off">
+      <div class="ipk-body" id="ipkBody"></div>
+      <div class="acts"><button type="button" class="btn small" data-m="ipk-upload">${HB_PIC.image}${T('Eigenes Bild hochladen', 'Upload your own picture')}</button><button type="button" class="btn small" data-m="ipk-auto">${T('Automatisch', 'Automatic')}</button><button type="button" class="btn small" data-m="ipk-none">${T('Ohne Bild', 'No picture')}</button></div></div>`;
+    modal.hidden = false; renderPicker(); setTimeout(() => $('#ipkSearch')?.focus(), 30);
+  }
+  function renderPicker() {
+    if (!ipk) return; const { eid, q } = ipk, cur = plan.icons?.[eid] || '', src = hbIconSrc(plan, hass, eid, autoIcons);
+    $('#ipkCur').innerHTML = src ? `<img src="${esc(src)}" alt="">` : '';
+    const btn = n => `<button type="button" class="ipk-i${cur === 'hb:' + n ? ' on' : ''}" data-m="ipk-pick" data-n="${n}" title="${esc(N(HB_ICONLIB[n]))}"><img src="${hbIconURL(n)}" alt=""><span>${esc(N(HB_ICONLIB[n]))}</span></button>`;
+    const names = Object.keys(HB_ICONLIB); let h = '';
+    if (q) {
+      const nq = normTxt(q), hit = names.filter(n => normTxt(n + ' ' + HB_ICONLIB[n][0] + ' ' + HB_ICONLIB[n][1]).includes(nq));
+      h = hit.length ? `<div class="ipk-g">${hit.map(btn).join('')}</div>` : `<p class="note">${T('Nichts gefunden. Probier ein anderes Wort oder lade ein eigenes Bild hoch.', 'Nothing found. Try another word or upload your own picture.')}</p>`;
+    } else {
+      const auto = (hbAutoIcon(hass, eid) || '').slice(3), txt = normTxt(fname(eid) + ' ' + eid), grp = auto ? HB_ICONLIB[auto]?.[2] : null;
+      const sug = [...new Set([auto, ...names.filter(n => normTxt(HB_ICONLIB[n][0]).split(/[^a-z]+/).some(w => w.length > 3 && txt.includes(w))), ...(grp ? names.filter(n => HB_ICONLIB[n][2] === grp) : [])].filter(Boolean))].slice(0, 8);
+      if (sug.length) h += `<h3>${T('Passt vermutlich', 'Probably fits')}</h3><div class="ipk-g">${sug.map(btn).join('')}</div>`;
+      for (const [g, gn] of HB_ICON_GROUPS) h += `<h3>${N(gn)}</h3><div class="ipk-g">${names.filter(n => HB_ICONLIB[n][2] === g).map(btn).join('')}</div>`;
+    }
+    $('#ipkBody').innerHTML = h;
+  }
+  function setIcon(eid, val) { const ic = { ...(plan.icons || {}) }; if (val) ic[eid] = val; else delete ic[eid]; plan.icons = ic; commit(true); }
   let iconFor = null;
   function pickIcon(eid) { iconFor = eid; $('#fileIcon').click(); }
   on($('#fileIcon'), 'change', e => {
@@ -793,7 +834,7 @@ function hbCreatePlanner(root, opts) {
     if (act === 'ehideall') { o.hide = hbRoomEntities(plan, o, hass).filter(c => c.src !== 'add').map(c => c.eid); commit(true); toast(T('Alle ausgeblendet – jetzt mit dem Auge nur die gewünschten Geräte einblenden.', 'All hidden – now use the eye to show just the devices you want.')); return; }
     if (act === 'eremove') { o.add = (o.add || []).filter(x => x !== b.dataset.e); commit(true); return; }
     if (act === 'eadd') return addEntity();
-    if (act === 'eimg') return pickIcon(b.dataset.e);
+    if (act === 'eimg') return openIconPicker(b.dataset.e);
     if (act === 'eimgdel') { const ic = { ...(plan.icons || {}) }; delete ic[b.dataset.e]; plan.icons = ic; commit(true); return; }
     if (act === 'flipHinge') { o.flipHinge = !o.flipHinge; commit(); return; }
     if (act === 'flipSide') { o.flipSide = !o.flipSide; commit(); return; }
@@ -852,10 +893,15 @@ function hbCreatePlanner(root, opts) {
   }
   function loadPlan(p, msg) { if (!p || !Array.isArray(p.rooms)) { toast(T('Das ist kein HomeBoo-Plan.', 'That is not a HomeBoo plan.')); return; } const bg = plan.bg; plan = normalizePlan(p); plan.bg = bg; sel = null; commit(true); $('#planName').value = plan.name; fitView(); modal.hidden = true; modal.innerHTML = ''; toast(msg); }
   on($('#btnFile'), 'click', openFile);
+  on(modal, 'input', e => { if (e.target.id === 'ipkSearch' && ipk) { ipk.q = e.target.value.trim(); renderPicker(); } });
   on(modal, 'click', e => {
     if (e.target === modal) { modal.hidden = true; return; }
     const b = e.target.closest('[data-m]'); if (!b) return; const m = b.dataset.m;
     if (m === 'close') { modal.hidden = true; modal.innerHTML = ''; }
+    if (m === 'ipk-pick' && ipk) { setIcon(ipk.eid, 'hb:' + b.dataset.n); modal.hidden = true; modal.innerHTML = ''; ipk = null; return; }
+    if (m === 'ipk-auto' && ipk) { setIcon(ipk.eid, null); modal.hidden = true; modal.innerHTML = ''; ipk = null; return; }
+    if (m === 'ipk-none' && ipk) { setIcon(ipk.eid, 'none'); modal.hidden = true; modal.innerHTML = ''; ipk = null; return; }
+    if (m === 'ipk-upload' && ipk) { const e2 = ipk.eid; modal.hidden = true; modal.innerHTML = ''; ipk = null; pickIcon(e2); return; }
     if (m === 'copy') { const ta = $('#dlgOut'); const done = () => toast(T('Plan kopiert.', 'Plan copied.')); const fail = () => { ta.focus(); ta.select(); toast(T('Kopieren blockiert – der Text ist markiert, mit Strg+C kopieren.', 'Copy was blocked – the text is selected, press Ctrl+C.')); }; try { navigator.clipboard.writeText(ta.value).then(done, fail); } catch (err) { fail(); } }
     if (m === 'paste') { try { loadPlan(JSON.parse($('#dlgIn').value), T('Plan geladen.', 'Plan loaded.')); } catch (err) { toast(T('Der Text ist kein gültiger Plan.', 'The text is not a valid plan.')); } }
     if (m === 'file') $('#fileJson').click();

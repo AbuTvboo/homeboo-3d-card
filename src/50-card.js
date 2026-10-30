@@ -60,6 +60,7 @@ class HomeBoo3DCardEditor extends HTMLElement {
         <div class="fld"><label for="night">${T('Tag und Nacht', 'Day and night')}</label><select id="night" data-k="night">${[['auto', T('Automatisch (Sonnenstand)', 'Automatic (sun)')], ['day', T('Immer Tag', 'Always day')], ['night', T('Immer Nacht', 'Always night')]].map(([v, n]) => `<option value="${v}" ${(c.night || 'auto') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="accent">${T('Akzentfarbe', 'Accent colour')}</label><input id="accent" type="color" data-k="accent" value="${esc(c.accent || '#7ef0ff')}"></div>
         <div class="fld"><label for="tap">${T('Antippen im 3D-Modell', 'Tapping in the 3D model')}</label><select id="tap" data-k="tap_action">${[['toggle', T('Schaltet direkt', 'Switches directly')], ['details', T('Öffnet erst die Steuerung', 'Opens the controls first')]].map(([v, n]) => `<option value="${v}" ${(c.tap_action || 'toggle') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="fld"><label for="icons">${T('Symbole der Geräte', 'Device symbols')}</label><select id="icons" data-k="auto_icons">${[['auto', T('Automatisch passend', 'Matched automatically')], ['off', T('Nur Standard-Symbole', 'Standard symbols only')]].map(([v, n]) => `<option value="${v}" ${(c.auto_icons || 'auto') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="panel">${T('Seitenleiste beim Start', 'Side panel on start')}</label><select id="panel" data-k="panel">${[['open', T('Aufgeklappt', 'Expanded')], ['collapsed', T('Eingeklappt (z. B. Wand-Tablet)', 'Collapsed (e.g. wall tablet)')]].map(([v, n]) => `<option value="${v}" ${(c.panel || 'open') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       </div>
       <p class="hint">${T('Tipp: Verknüpfe jeden Raum im Editor mit einem Bereich aus Home Assistant. Dann erscheinen dessen Geräte automatisch im Raum.', 'Tip: link each room to a Home Assistant area in the editor. Its devices then appear in the room automatically.')}</p>
@@ -73,7 +74,7 @@ class HomeBoo3DCardEditor extends HTMLElement {
   }
   update(k, v) {
     const c = { ...this._config };
-    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px') || (k === 'tap_action' && v === 'toggle') || (k === 'panel' && v === 'open')) delete c[k]; else c[k] = v;
+    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px') || (k === 'tap_action' && v === 'toggle') || (k === 'panel' && v === 'open') || (k === 'auto_icons' && v === 'auto')) delete c[k]; else c[k] = v;
     this._config = c; this.fire();
   }
   fire() { this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -88,7 +89,7 @@ class HomeBoo3DCardEditor extends HTMLElement {
     const close = () => { pl?.destroy(); try { dlg.close(); } catch (e) {} dlg.remove(); };
     dlg.addEventListener('cancel', e => e.preventDefault());
     pl = hbCreatePlanner(sr, {
-      plan: this._config.plan || emptyPlan(), hass: this._hass, threeUrl: this._config.three_url,
+      plan: this._config.plan || emptyPlan(), hass: this._hass, threeUrl: this._config.three_url, autoIcons: this._config.auto_icons !== 'off',
       onApply: plan => { this._config = { ...this._config, plan }; this.fire(); this.render(); close(); },
       onCancel: close,
     });

@@ -17,6 +17,7 @@ Draw your own floor plan directly in Home Assistant with drag & drop – no Blen
 - **Temperature view** – colours every room by its temperature
 - **Control panel per room** – devices come from the floor plan and from the linked Home Assistant **area**
 - **Choose what each room shows** – hide single devices of an area with one click (or hide all and pick the few you want), add devices from other areas and drag them into your own order
+- **62 built-in symbols** in the HomeBoo style – floor lamp, chandelier, pendant, LED strip, coffee machine, robot vacuum, wallbox and many more. The card picks fitting symbols automatically from the device names, and you can change them with one tap
 - **Your own pictures** – upload a photo of your lamp (or any device) and it replaces the icon on the card
 - **Window and door contacts** – open windows glow orange, doors swing open and closed in the model
 - **Motion and presence** – rooms pulse softly while a motion or presence sensor is on
@@ -67,6 +68,7 @@ Everything can be set in the visual editor. YAML options:
 | `accent` | `#7ef0ff` | Accent colour |
 | `tap_action` | `toggle` | `toggle` switches lights, TV, fireplace and covers on tap, `details` always opens the controls |
 | `panel` | `open` | `collapsed` starts with the side panel folded in, handy for wall tablets |
+| `auto_icons` | `auto` | `auto` picks fitting symbols from device names, `off` keeps the standard symbols |
 | `three_url` | jsDelivr CDN | URL of `three.module.js`, for running without internet |
 | `plan` | – | The floor plan, written by the editor |
 
@@ -94,6 +96,11 @@ three_url: /local/homeboo/three.module.js
 The plan is stored in the card configuration and is included in Home Assistant backups. A traced background image stays in your browser only.
 
 ## Changelog
+
+### 0.4.0
+- 62 built-in device symbols in the HomeBoo style, picked automatically from device names
+- Symbol picker in the editor with search and suggestions, own pictures still possible
+- New option `auto_icons` (`auto` / `off`)
 
 ### 0.3.1
 - Support link (PayPal) in the README and the card editor
@@ -144,7 +151,8 @@ MIT
 1. In HACS unter **Benutzerdefinierte Repositories** diese Adresse mit Typ **Dashboard** hinzufügen und installieren
 2. Dashboard bearbeiten, Karte **HomeBoo 3D** hinzufügen
 3. **Grundriss-Editor öffnen**, Räume zeichnen, jedem Raum einen **Bereich** aus Home Assistant zuordnen
-4. Unter **Geräte in diesem Raum** mit dem Auge ausblenden, was nicht in der Karte erscheinen soll (oder **Alle ausblenden** und nur die gewünschten wieder einblenden)
-5. **Übernehmen** und **Speichern**
+4. Die Karte wählt passende Symbole automatisch – zum Ändern im Editor einfach auf das Symbol eines Geräts tippen
+5. Unter **Geräte in diesem Raum** mit dem Auge ausblenden, was nicht in der Karte erscheinen soll (oder **Alle ausblenden** und nur die gewünschten wieder einblenden)
+6. **Übernehmen** und **Speichern**
 
 Gefällt dir die Karte? Über [PayPal](https://paypal.me/sebagueven) kannst du mir einen Kaffee spendieren ☕ – danke!
