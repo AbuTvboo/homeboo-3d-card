@@ -39,6 +39,9 @@ const HB_EDITOR_CSS = `
 .hint{margin:0;font-size:12px;line-height:1.5;color:var(--secondary-text-color,#9097ba)}
 details summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--secondary-text-color,#9097ba)}
 details .fld{margin-top:10px}
+.support{margin:4px 0 0;font-size:12px;text-align:center;color:var(--secondary-text-color,#9097ba)}
+.support a{color:var(--primary-color,#7ef0ff);font-weight:600;text-decoration:none}
+.support a:hover{text-decoration:underline}
 @media (max-width:480px){.grid{grid-template-columns:1fr}}
 `;
 class HomeBoo3DCardEditor extends HTMLElement {
@@ -56,9 +59,12 @@ class HomeBoo3DCardEditor extends HTMLElement {
         <div class="fld"><label for="height">${T('Höhe', 'Height')}</label><select id="height" data-k="height">${[['600px', '600 px'], ['480px', '480 px'], ['720px', '720 px'], ['900px', '900 px'], ['full', T('Bildschirmhöhe (Panel)', 'Screen height (panel)')]].map(([v, n]) => `<option value="${v}" ${(c.height || '600px') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="night">${T('Tag und Nacht', 'Day and night')}</label><select id="night" data-k="night">${[['auto', T('Automatisch (Sonnenstand)', 'Automatic (sun)')], ['day', T('Immer Tag', 'Always day')], ['night', T('Immer Nacht', 'Always night')]].map(([v, n]) => `<option value="${v}" ${(c.night || 'auto') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="accent">${T('Akzentfarbe', 'Accent colour')}</label><input id="accent" type="color" data-k="accent" value="${esc(c.accent || '#7ef0ff')}"></div>
+        <div class="fld"><label for="tap">${T('Antippen im 3D-Modell', 'Tapping in the 3D model')}</label><select id="tap" data-k="tap_action">${[['toggle', T('Schaltet direkt', 'Switches directly')], ['details', T('Öffnet erst die Steuerung', 'Opens the controls first')]].map(([v, n]) => `<option value="${v}" ${(c.tap_action || 'toggle') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="fld"><label for="panel">${T('Seitenleiste beim Start', 'Side panel on start')}</label><select id="panel" data-k="panel">${[['open', T('Aufgeklappt', 'Expanded')], ['collapsed', T('Eingeklappt (z. B. Wand-Tablet)', 'Collapsed (e.g. wall tablet)')]].map(([v, n]) => `<option value="${v}" ${(c.panel || 'open') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       </div>
       <p class="hint">${T('Tipp: Verknüpfe jeden Raum im Editor mit einem Bereich aus Home Assistant. Dann erscheinen dessen Geräte automatisch im Raum.', 'Tip: link each room to a Home Assistant area in the editor. Its devices then appear in the room automatically.')}</p>
       <details><summary>${T('Erweitert', 'Advanced')}</summary><div class="fld"><label for="three">${T('Adresse von three.module.js (für Betrieb ohne Internet)', 'URL of three.module.js (for offline use)')}</label><input id="three" data-k="three_url" value="${esc(c.three_url || '')}" placeholder="${HB_THREE_DEFAULT}"></div></details>
+      <p class="support">${T('Gefällt dir HomeBoo 3D?', 'Enjoying HomeBoo 3D?')} <a href="${HB_SUPPORT_URL}" target="_blank" rel="noopener noreferrer">☕ ${T('Spendier mir einen Kaffee', 'Buy me a coffee')}</a></p>
     </div>`;
     const sr = this.shadowRoot;
     sr.getElementById('openPlanner').addEventListener('click', () => this.openPlanner());
@@ -67,7 +73,7 @@ class HomeBoo3DCardEditor extends HTMLElement {
   }
   update(k, v) {
     const c = { ...this._config };
-    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px')) delete c[k]; else c[k] = v;
+    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px') || (k === 'tap_action' && v === 'toggle') || (k === 'panel' && v === 'open')) delete c[k]; else c[k] = v;
     this._config = c; this.fire();
   }
   fire() { this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true })); }

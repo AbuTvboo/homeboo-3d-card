@@ -1,5 +1,6 @@
 /*! HomeBoo 3D Card | MIT License */
-const HB_VERSION = '0.2.0';
+const HB_VERSION = '0.3.1';
+const HB_SUPPORT_URL = 'https://paypal.me/sebagueven';
 const HB_THREE_DEFAULT = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const hbThreeCache = new Map();
 function hbLoadThree(url) {
@@ -131,7 +132,20 @@ function hbRoomEntities(plan, room, hass) {
   for (const o of plan.openings) if (o.room === room.id) { if (o.entity) push(o.entity, 'op'); if (o.contact) push(o.contact, 'op', 'contact'); }
   for (const e of room.add || []) push(e, 'add');
   for (const e of hbAreaEntities(room, hass)) push(e, 'area');
-  return out;
+  return hbSortEnts(out, room.order);
+}
+/* Eigene Reihenfolge aus dem Editor; nicht einsortierte Geräte folgen in ihrer natürlichen Reihenfolge */
+function hbSortEnts(list, order) {
+  if (!order?.length) return list;
+  const ix = new Map(order.map((e, i) => [e, i]));
+  return list.map((c, i) => [c, ix.has(c.eid) ? ix.get(c.eid) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+}
+/* Farbskala für die Temperatur-Ansicht */
+const HB_HEAT = [[16, [70, 130, 255]], [19, [40, 205, 235]], [21, [80, 220, 130]], [23, [250, 205, 40]], [26, [245, 80, 70]]];
+function hbHeatColor(t) {
+  if (t <= HB_HEAT[0][0]) return `rgb(${HB_HEAT[0][1].join(',')})`;
+  for (let i = 0; i < HB_HEAT.length - 1; i++) { const [t0, c0] = HB_HEAT[i], [t1, c1] = HB_HEAT[i + 1]; if (t <= t1) { const f = (t - t0) / (t1 - t0); return `rgb(${c0.map((v, k) => Math.round(v + (c1[k] - v) * f)).join(',')})`; } }
+  return `rgb(${HB_HEAT[HB_HEAT.length - 1][1].join(',')})`;
 }
 
 /* ---------- Plan ---------- */
@@ -141,10 +155,11 @@ function normalizePlan(p) {
   if (!p || typeof p !== 'object') return e;
   const out = { ...e, ...p };
   const strs = a => Array.isArray(a) ? [...new Set(a.filter(x => typeof x === 'string' && x.includes('.')))] : [];
-  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', wall: /^#[0-9a-f]{6}$/i.test(r.wall || '') ? r.wall : '', hide: strs(r.hide), add: strs(r.add), open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
+  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', wall: /^#[0-9a-f]{6}$/i.test(r.wall || '') ? r.wall : '', hide: strs(r.hide), add: strs(r.add), order: strs(r.order), open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
   out.openings = (Array.isArray(p.openings) ? p.openings : []).filter(o => OPDEF[o.type]).map(o => ({ id: o.id || uid('o'), flipHinge: false, flipSide: false, entity: '', contact: '', sill: OPDEF[o.type].sill ?? 0, h: OPDEF[o.type].h, w: OPDEF[o.type].w, ...o }));
   out.items = (Array.isArray(p.items) ? p.items : []).filter(i => CAT[i.kind]).map(i => ({ id: i.id || uid('i'), rot: 0, w: CAT[i.kind].w, d: CAT[i.kind].d, ...i }));
   out.devices = (Array.isArray(p.devices) ? p.devices : []).filter(d => DEVDEF[d.kind]).map(d => ({ id: d.id || uid('d'), name: '', entity: '', ...d }));
+  out.icons = Object.fromEntries(Object.entries(p.icons && typeof p.icons === 'object' ? p.icons : {}).filter(([k, v]) => k.includes('.') && typeof v === 'string' && v.length < 400000 && /^(data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]|\/|https?:\/\/)/.test(v)));
   out.wallHeight = clamp(+out.wallHeight || 2.55, 2, 4);
   delete out.bg;
   return out;
@@ -405,6 +420,11 @@ function hbMakeScene(THREE, canvas) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
   const own = m => { m.userData.own = true; return m; };
+  /* Unsichtbare Trefferflächen, damit kleine Geräte gut anzutippen sind */
+  const HITM = new THREE.MeshBasicMaterial({ visible: false });
+  const hitProxy = (geo, key) => { const m = new THREE.Mesh(geo, HITM); m.userData.hitKey = key; return m; };
+  const RINGTEX = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.strokeStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 14; x.lineWidth = 7; x.beginPath(); x.arc(64, 64, 46, 0, Math.PI * 2); x.stroke(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const pings = [];
 
   /* Abgerundete Quader (eigene Umsetzung, Geometrien werden geteilt) */
   const rbCache = new Map();
@@ -651,6 +671,7 @@ function hbMakeScene(THREE, canvas) {
     let cur = -t / 2;
     for (const x of ops) {
       const o = x.o, w = x.e - x.s, cx = (x.s + x.e) / 2, h = Math.min(o.h, H - 0.05), op = openingPos(plan, o);
+      if (o.entity || o.contact) { const y0 = o.type === 'window' ? Math.min(o.sill, H - 0.3) : 0, hh = o.type === 'window' ? Math.min(h, H - y0 - 0.05) : h, p = hitProxy(new THREE.BoxGeometry(Math.max(0.3, w), Math.max(0.3, hh + 0.2), t + 0.3), 'op:' + o.id); p.position.set(cx, y0 + hh / 2, 0); g.add(p); reg.hits.push(p); }
       piece(cur, x.s, 0, H);
       if (o.type === 'window') { const sill = Math.min(o.sill, H - 0.3), hh = Math.min(h, H - sill - 0.05); piece(x.s, x.e, 0, sill); piece(x.s, x.e, sill + hh, H); glaz(cx, w, sill, hh, false, o); addShutter(o, op, cx, w, sill + hh, hh); }
       else {
@@ -694,7 +715,7 @@ function hbMakeScene(THREE, canvas) {
 
   function build(plan, bo = {}) {
     clear(wallGroup); clear(content);
-    reg = { lights: new Map(), shutters: new Map(), screens: new Map(), locks: new Map(), drums: new Map(), contacts: new Map(), doors: new Map(), fires: new Map(), motionDevs: new Map(), rooms: new Map(), floors: [], bbox: null, radius: 6, center: [0, 0] };
+    reg = { lights: new Map(), shutters: new Map(), screens: new Map(), locks: new Map(), drums: new Map(), contacts: new Map(), doors: new Map(), fires: new Map(), motionDevs: new Map(), rooms: new Map(), floors: [], hits: [], bbox: null, radius: 6, center: [0, 0] };
     let nPL = 0;
     const all = plan.rooms.flatMap(r => r.pts);
     if (!all.length) return reg;
@@ -713,7 +734,8 @@ function hbMakeScene(THREE, canvas) {
       const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(r.pts.map(p => { const q = P3(p); return new THREE.Vector3(q[0], 0.035, q[1]); })), own(new THREE.LineBasicMaterial({ color: '#7ef0ff', transparent: true, opacity: 0 }))); line.renderOrder = 3; content.add(line);
       const c = centroid(r.pts), radius = Math.max(...r.pts.map(p => dist(p, c)));
       const mv = decal(r.pts, c[0], c[1], Math.max(1.6, radius * 1.1)); mv.material.color.set('#9b7bff'); mv.position.y = 0.016; content.add(mv);
-      reg.rooms.set(r.id, { center: c, radius, fill, line, cur: 0, target: 0, poly: r.pts, motion: { mat: mv.material, cur: 0, target: 0 } });
+      const heat = new THREE.Mesh(geo, own(new THREE.MeshBasicMaterial({ color: '#50dc82', transparent: true, opacity: 0, depthWrite: false }))); heat.position.y = 0.026; heat.renderOrder = 2; content.add(heat);
+      reg.rooms.set(r.id, { center: c, radius, fill, line, cur: 0, target: 0, poly: r.pts, motion: { mat: mv.material, cur: 0, target: 0 }, heat: { mat: heat.material, cur: 0, target: 0 } });
     }
     const W = computeWalls(plan);
     for (const pc of W.pieces) buildWall(plan, pc, bo);
@@ -768,6 +790,7 @@ function hbMakeScene(THREE, canvas) {
         default: continue;
       }
       const q = P3([it.x, it.y]); o.position.set(q[0], 0, q[1]); o.rotation.y = -it.rot * DEG; content.add(o);
+      if (it.entity) { o.userData.hitKey = 'item:' + it.id; reg.hits.push(o); }
     }
     const addLight = (key, x, y, h, I, R, poly, mats) => {
       const L = { cur: 0, target: 0, color: new THREE.Color('#ffc78a'), I, pl: null, decals: [], mats: mats || [] };
@@ -778,6 +801,10 @@ function hbMakeScene(THREE, canvas) {
     };
     for (const d of plan.devices) {
       const q = P3([d.x, d.y]);
+      if (d.entity) {
+        const lh = clamp(d.h ?? 2.1, 0.4, plan.wallHeight), px = d.kind === 'lamp' ? hitProxy(new THREE.CylinderGeometry(0.32, 0.32, 1.8, 10), 'dev:' + d.id) : hitProxy(new THREE.SphereGeometry(0.34, 10, 8), 'dev:' + d.id);
+        px.position.set(q[0], d.kind === 'lamp' ? 0.9 : d.kind === 'sensor' ? 1.5 : d.kind === 'motion' ? plan.wallHeight - 0.32 : d.kind === 'spot' ? plan.wallHeight - 0.08 : lh - 0.08, q[1]); content.add(px); reg.hits.push(px);
+      }
       if (d.kind === 'sensor') { content.add(at(rb(0.12, 0.12, 0.04, M.sensor, 0.015), q[0], 1.5, q[1])); continue; }
       if (d.kind === 'motion') {
         const mm = own(std('#f2f2f4', 0.4, 0, { emissive: '#b48cff', emissiveIntensity: 0 })), dome = sph(0.075, mm, 16, 10); dome.scale.y = 0.6;
@@ -822,6 +849,12 @@ function hbMakeScene(THREE, canvas) {
       for (const d of reg.doors.values()) { d.cur += (d.target - d.cur) * k * 0.7; d.pivot.rotation.y = d.open * d.cur; }
       for (const f of reg.fires.values()) { f.cur += (f.target - f.cur) * k * 0.5; f.mat.emissiveIntensity = f.cur * 2.2 * flick; if (f.pl) f.pl.intensity = f.cur * 2.4 * flick * (0.4 + 0.6 * n); }
       for (const m of reg.motionDevs.values()) { m.cur += (m.target - m.cur) * k; m.mat.emissiveIntensity = m.cur * (0.8 + 1.6 * pulse); }
+      for (const r of reg.rooms.values()) { const h = r.heat; if (h) { h.cur += (h.target - h.cur) * k; h.mat.opacity = h.cur * 0.5; } }
+    }
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const q = pings[i]; q.t += Math.max(dt, 0.016); const f = q.t / 0.75;
+      if (f >= 1) { scene.remove(q.s); q.s.material.dispose(); pings.splice(i, 1); continue; }
+      const sc = (0.3 + f * 1.1) * Math.max(0.7, orbit.sph.radius / 14); q.s.scale.set(sc, sc, 1); q.s.material.opacity = (1 - f) * 0.9;
     }
     wallScale += (wallTarget - wallScale) * (1 - Math.exp(-dt * 4)); wallGroup.scale.y = wallScale;
     if (tween) {
@@ -849,6 +882,22 @@ function hbMakeScene(THREE, canvas) {
     if (!reg) return null; const r = canvas.getBoundingClientRect();
     v2.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera);
     const hit = ray.intersectObjects(reg.floors, false)[0]; return hit ? hit.object.userData.room : null;
+  }
+  /* Gerät oder Möbel unter dem Zeiger – nur wenn keine Wand davor steht */
+  const wallHit = o => { while (o && o !== wallGroup) { if (o.userData.hitKey) return false; o = o.parent; } return true; };
+  function pickAt(clientX, clientY) {
+    if (!reg) return null; const r = canvas.getBoundingClientRect();
+    v2.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera);
+    const fl = ray.intersectObjects(reg.floors, false)[0], out = { room: fl ? fl.object.userData.room : null, key: null, point: fl ? fl.point.clone() : null };
+    const hit = reg.hits.length ? ray.intersectObjects(reg.hits, true)[0] : null; if (!hit) return out;
+    let o = hit.object; while (o && !o.userData.hitKey) o = o.parent; if (!o) return out;
+    const wall = ray.intersectObjects(wallGroup.children, true).find(x => x.object.isMesh && x.object.material !== M.glass && x.object.material !== HITM && wallHit(x.object));
+    if (wall && wall.distance < hit.distance - 0.05) return out;
+    out.key = o.userData.hitKey; out.point = hit.point.clone(); return out;
+  }
+  function ping(p, color = '#7ef0ff') {
+    if (!p) return; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: RINGTEX, color, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.position.copy(p); s.renderOrder = 20; scene.add(s); pings.push({ s, t: 0 });
   }
   function project(x, y, h = 0.2) { tmp.set(x - ctr[0], h, y - ctr[1]).project(camera); return { x: (tmp.x + 1) / 2 * canvas.clientWidth, y: (1 - tmp.y) / 2 * canvas.clientHeight, vis: tmp.z < 1 }; }
   function resize(w, h, ox = 0, oy = 0) { if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.setViewOffset(w, h, ox, oy, w, h); camera.updateProjectionMatrix(); }
@@ -880,7 +929,7 @@ function hbMakeScene(THREE, canvas) {
   }
   function dispose() { clear(wallGroup); clear(content); renderer.dispose(); pmrem.dispose(); }
   return {
-    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, project, resize, fitDistance, fitView, loadPicture, dispose, lastUser: () => userAt,
+    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, pickAt, ping, project, resize, fitDistance, fitView, loadPicture, dispose, lastUser: () => userAt,
     reg: () => reg, setNight: v => { nightTarget = v; }, setWallsLow: v => { wallTarget = v ? 0.42 : 1; }, wallsLow: () => wallTarget < 1, isFlying: () => !!tween,
   };
 }
@@ -928,6 +977,8 @@ Object.assign(HB_ICON, {
   contact: hbIc('M5 21V4h10v17M15 6l4-1.5V21M3 21h18M11.5 12.5h.01'),
   eye: hbIc('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z'),
   eyeOff: hbIc('M3 3l18 18M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8M6.3 7.3A16.5 16.5 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.4-1.1M9.9 10a2.5 2.5 0 0 0 3.6 3.5'),
+  close: hbIc('M6 6l12 12M18 6 6 18'), play: hbIc('M8 5.5v13l10.5-6.5z'), pause: hbIc('M8 5.5v13M16 5.5v13'), prev: hbIc('M18 6v12l-8.5-6zM6 6v12'), next: hbIc('M6 6v12l8.5-6zM18 6v12'),
+  allOff: hbIc('M9 18h6M10 21h4M12 3a6 6 0 0 0-3.8 10.6c.6.5.8 1.2.8 2V16h6v-.4c0-.8.2-1.5.8-2A6 6 0 0 0 12 3zM3 3l18 18'),
   fire: hbIc('M12 21a6 6 0 0 0 6-6c0-3.5-2.5-5.5-3.5-8.5-1 2-2 3-3 3.5C11.5 7.5 10 5 9.5 3 8 6 6 9 6 15a6 6 0 0 0 6 6zM12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z'),
 });
 const HB_OFF = new Set(['off', 'unavailable', 'unknown', 'standby', 'idle', 'closed', 'locked']);
@@ -1003,6 +1054,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .di svg{width:20px;height:20px}
 .dev.on .di{color:var(--hb-accent);background:var(--hb-accent-soft)}
 .dev.on.light .di{color:var(--hb-lamp);background:rgba(255,201,138,.13);box-shadow:0 0 22px rgba(255,201,138,.22)}
+.di.pic,.ai.pic{background:rgba(255,255,255,.06)!important;overflow:hidden;box-shadow:none!important}
+.di img,.ai img{width:86%;height:86%;object-fit:contain;transition:filter .3s,opacity .3s}
+.dev:not(.on) .di img{filter:grayscale(.75) brightness(.7);opacity:.8}
+.dev.on.light .di img,.actr.light .ai img{filter:drop-shadow(0 0 5px rgba(255,201,138,.85))}
 .dev.spin .di svg{animation:spin 1.2s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .dt{min-width:0}
@@ -1058,6 +1113,45 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .msg b{color:var(--hb-fg)}
 .swap>*{animation:rise .42s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*45ms)}
 @keyframes rise{from{opacity:0;transform:translateX(-14px)}}
+button.stat{font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .2s,background .2s}
+button.stat:hover{border-color:var(--hb-line2);background:rgba(255,255,255,.05)}
+.tool.on{color:var(--hb-accent);border-color:rgba(126,240,255,.45);background:var(--hb-accent-soft)}
+.lbl.heat::before{background:var(--heat);box-shadow:0 0 9px var(--heat)}
+.sect h3 em{font-style:normal;margin-left:6px;padding:1px 7px;border-radius:99px;background:rgba(255,201,138,.14);color:var(--hb-lamp);letter-spacing:0}
+.sect h3 em.w{background:rgba(255,178,92,.14);color:var(--hb-warn)}
+.acts{display:flex;flex-direction:column;gap:4px}
+.actr{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;padding:6px 8px 6px 6px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--hb-line)}
+.actr .ai{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--hb-accent-soft);color:var(--hb-accent)}
+.actr.light .ai{background:rgba(255,201,138,.13);color:var(--hb-lamp)}
+.actr .ai svg{width:17px;height:17px}
+.at{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;padding:0;text-align:left;cursor:pointer}
+.at b{max-width:100%;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at small{max-width:100%;font-size:11.5px;color:var(--hb-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actb{display:flex;gap:6px;flex-wrap:wrap}.actb .btn{flex:1}
+.btn svg{width:16px;height:16px;flex:none}
+.btn.lampb{color:var(--hb-lamp);border-color:rgba(255,201,138,.35)}
+.roomall{height:38px}
+.rr.warn svg{color:var(--hb-warn)}.rr.warn span{color:var(--hb-warn)}
+.dev.warn{border-color:rgba(255,178,92,.4)}.dev.warn .di{color:var(--hb-warn);background:rgba(255,178,92,.12)}
+.dev.move{border-color:rgba(180,140,255,.4)}.dev.move .di{color:#b48cff;background:rgba(180,140,255,.12)}
+.mctl{display:flex;align-items:center;justify-content:center;gap:10px}
+.mctl .icb.big{width:46px;height:46px;border-radius:50%;color:var(--hb-accent-ink);background:var(--hb-accent);border-color:var(--hb-accent)}
+.mctl .icb.big svg{width:20px;height:20px}
+.tip{position:absolute;left:0;top:0;z-index:5;pointer-events:none;display:flex;flex-direction:column;gap:1px;max-width:240px;padding:8px 11px;border-radius:12px;background:rgba(9,12,24,.9);border:1px solid var(--hb-line2);box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.tip b{font-size:13px;font-weight:600}.tip span{font:500 12px var(--hb-mono);color:var(--hb-accent)}.tip small{margin-top:3px;font-size:10.5px;color:var(--hb-faint)}
+.pop{position:absolute;z-index:6;width:300px;max-width:calc(100% - 16px);display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:16px;background:var(--hb-glass2);border:1px solid var(--hb-line2);box-shadow:0 24px 60px rgba(0,0,0,.5);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);animation:popin .18s ease-out}
+@keyframes popin{from{opacity:0;transform:scale(.96)}}
+.poph{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.poph .icb{width:30px;height:30px}
+.lnk{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:2px 4px;color:var(--hb-muted);font-weight:600;font-size:12px;cursor:pointer}
+.lnk svg{width:15px;height:15px}.lnk:hover{color:var(--hb-accent)}
+.toast{position:absolute;left:50%;bottom:16px;z-index:7;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:8px 8px 8px 14px;border-radius:14px;background:#1a2040;border:1px solid var(--hb-line2);box-shadow:0 12px 34px rgba(0,0,0,.45);font-size:13px;white-space:nowrap;animation:popin .2s ease-out}
+.toast span{overflow:hidden;text-overflow:ellipsis}
+.toast button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(126,240,255,.4);background:var(--hb-accent-soft);color:var(--hb-accent);font-weight:700;font-size:12.5px;cursor:pointer}
+.legend{position:absolute;right:16px;bottom:16px;z-index:3;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:var(--hb-glass);border:1px solid var(--hb-line);font:500 11px var(--hb-mono);color:var(--hb-muted);pointer-events:none}
+.legend i{width:90px;height:6px;border-radius:99px;background:linear-gradient(90deg,rgb(70,130,255),rgb(40,205,235) 30%,rgb(80,220,130) 50%,rgb(250,205,40) 70%,rgb(245,80,70))}
+.narrow .legend{bottom:auto;top:112px;right:12px}
+.narrow .toast{bottom:auto;top:110px}
 .narrow .top{grid-template-areas:"brand . tools" "nav nav nav";grid-template-columns:auto minmax(0,1fr) auto;gap:8px}
 .narrow .rooms{justify-self:stretch}
 .narrow .tool .t,.narrow .brand span{display:none}
@@ -1073,30 +1167,55 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 class HBViewer {
   constructor(root) {
     this.root = root; this.config = {}; this.plan = null; this.hass = null; this.sc = null;
-    this.focus = null; this.hover = null; this.nightMode = null; this.wallsMode = 'auto'; this.panelMin = false; this.interact = 0;
+    this.focus = null; this.hover = null; this.nightMode = null; this.wallsMode = 'auto'; this.viewMode = 'normal'; this.panelMin = false; this.interact = 0; this.pop = null; this.showAllActive = false;
     this.sig = ''; this.panelSig = ''; this.buildSig = ''; this.running = false; this.visible = true; this.connected = false;
     root.innerHTML = `<style>${HB_VIEW_CSS}</style><ha-card class="card"><div class="hb"><canvas></canvas><div class="labels"></div>
       <div class="ui"><header class="top"><div class="brand"><span class="ghost">${HB_GHOST}</span><div><b class="ttl"></b><span class="sub"></span></div></div><nav class="rooms"></nav>
-      <div class="tools"><button class="tool" data-t="night" type="button"></button><button class="tool" data-t="walls" type="button"></button></div></header>
-      <div class="stage"><aside class="panel" aria-live="polite"></aside></div></div><div class="msg" hidden></div></div></ha-card>`;
+      <div class="tools"><button class="tool" data-t="view" type="button"></button><button class="tool" data-t="night" type="button"></button><button class="tool" data-t="walls" type="button"></button></div></header>
+      <div class="stage"><aside class="panel" aria-live="polite"></aside></div></div>
+      <div class="legend" hidden><span>16°</span><i></i><span>26°</span></div><div class="tip" hidden></div><div class="pop" role="dialog" hidden></div><div class="toast" role="status" hidden></div>
+      <div class="msg" hidden></div></div></ha-card>`;
     const q = s => root.querySelector(s);
-    this.el = { hb: q('.hb'), canvas: q('canvas'), labels: q('.labels'), nav: q('.rooms'), panel: q('.panel'), top: q('.top'), msg: q('.msg'), ttl: q('.ttl'), sub: q('.sub'), night: q('[data-t=night]'), walls: q('[data-t=walls]') };
+    this.el = { hb: q('.hb'), canvas: q('canvas'), labels: q('.labels'), nav: q('.rooms'), panel: q('.panel'), top: q('.top'), msg: q('.msg'), ttl: q('.ttl'), sub: q('.sub'), night: q('[data-t=night]'), walls: q('[data-t=walls]'), view: q('[data-t=view]'), tip: q('.tip'), pop: q('.pop'), toast: q('.toast'), legend: q('.legend') };
     this.el.nav.addEventListener('click', e => { const b = e.target.closest('.nb'); if (b) this.go(b.dataset.room || null); });
     this.el.night.addEventListener('click', () => { const order = [null, 'night', 'day']; this.nightMode = order[(order.indexOf(this.nightMode) + 1) % 3]; this.applyNight(); this.syncChrome(); });
     this.el.walls.addEventListener('click', () => { this.wallsMode = { auto: 'hoch', hoch: 'niedrig', niedrig: 'auto' }[this.wallsMode]; this.applyWalls(); this.syncChrome(); if (this.focus) this.viewRoom(this.focus, 0.8); });
-    this.el.panel.addEventListener('click', e => this.onPanelClick(e));
-    this.el.panel.addEventListener('input', e => { const t = e.target; if (t.type !== 'range') return; this.interact = Date.now(); t.style.setProperty('--p', t.value + '%'); t.nextElementSibling.textContent = t.value + ' %'; });
-    this.el.panel.addEventListener('change', e => this.onPanelChange(e));
-    this.el.panel.addEventListener('pointerdown', () => { this.interact = Date.now(); });
-    const cv = this.el.canvas; let down = null;
-    cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
-    cv.addEventListener('pointerup', e => { if (!down) return; const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]); down = null; if (moved > 6 || !this.sc) return; const id = this.sc.pick(e.clientX, e.clientY); if (id) this.go(id); });
-    cv.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || e.buttons || !this.sc) return; const id = this.sc.pick(e.clientX, e.clientY); if (id !== this.hover) { this.hover = id; cv.style.cursor = id ? 'pointer' : 'grab'; } });
-    cv.addEventListener('pointerleave', () => { this.hover = null; });
+    this.el.view.addEventListener('click', () => { this.viewMode = this.viewMode === 'temp' ? 'normal' : 'temp'; this.applyHeat(); this.renderNav(); this.syncChrome(); });
+    for (const box of [this.el.panel, this.el.pop]) {
+      box.addEventListener('click', e => this.onPanelClick(e));
+      box.addEventListener('input', e => { const t = e.target; if (t.type !== 'range') return; this.interact = Date.now(); t.style.setProperty('--p', t.value + '%'); t.nextElementSibling.textContent = t.value + ' %'; });
+      box.addEventListener('change', e => this.onPanelChange(e));
+      box.addEventListener('pointerdown', () => { this.interact = Date.now(); });
+    }
+    this.el.toast.addEventListener('click', e => { if (e.target.closest('[data-act=undo]')) { const u = this._undo; this.hideToast(); u?.(); } });
+    this.el.hb.addEventListener('keydown', e => { if (e.key === 'Escape' && this.pop) { e.stopPropagation(); this.closePop(); } });
+    /* Antippen im Modell: kurz = schalten oder Raum öffnen, lang oder Rechtsklick = Steuerung am Gerät */
+    const cv = this.el.canvas; let down = null, lp = null, hoverT = 0;
+    cv.addEventListener('pointerdown', e => {
+      clearTimeout(lp); this.hideTip();
+      down = { x: e.clientX, y: e.clientY, b: e.button, long: false };
+      if (e.button === 0) lp = setTimeout(() => { if (!down || down.moved) return; down.long = true; this.objTap(down.x, down.y, true); }, 520);
+    });
+    cv.addEventListener('pointermove', e => {
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) { down.moved = true; clearTimeout(lp); }
+      if (e.pointerType !== 'mouse' || e.buttons || !this.sc) return;
+      const now = performance.now(); if (now - hoverT < 50) return; hoverT = now;
+      const hit = this.sc.pickAt(e.clientX, e.clientY), x = hit?.key ? this.target(hit.key) : null;
+      if (x) { this.hover = null; cv.style.cursor = 'pointer'; this.showTip(x, e.clientX, e.clientY); return; }
+      this.hideTip(); const id = hit?.room || null; if (id !== this.hover) this.hover = id; cv.style.cursor = id ? 'pointer' : 'grab';
+    });
+    cv.addEventListener('pointerup', e => {
+      clearTimeout(lp); if (!down) return; const d = down; down = null;
+      if (d.long || d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || !this.sc) return;
+      this.objTap(e.clientX, e.clientY, d.b === 2);
+    });
+    cv.addEventListener('pointercancel', () => { clearTimeout(lp); down = null; });
+    cv.addEventListener('pointerleave', () => { this.hover = null; this.hideTip(); });
     this.ro = new ResizeObserver(() => this.layout()); this.ro.observe(this.el.hb);
     if ('IntersectionObserver' in window) { this.io = new IntersectionObserver(es => { this.visible = es.some(x => x.isIntersecting); if (this.visible) this.start(); }); this.io.observe(this.el.hb); }
   }
   setConfig(cfg) {
+    if ((cfg.panel || 'open') !== (this.config.panel || 'open')) this.panelMin = cfg.panel === 'collapsed';
     this.config = cfg;
     const h = cfg.height === 'full' ? 'calc(100vh - var(--header-height, 56px) - 16px)' : (cfg.height || '600px');
     this.el.hb.style.setProperty('--hb-h', h);
@@ -1208,8 +1327,80 @@ class HBViewer {
     }
     for (const r of p.rooms) { const m = reg.rooms.get(r.id)?.motion; if (m) m.target = this.roomMotion(r) ? 1 : 0; }
     for (const d of p.devices) { if (d.kind !== 'motion') continue; const m = reg.motionDevs?.get(d.id); if (m) m.target = S(d.entity)?.state === 'on' ? 1 : 0; }
+    this.applyHeat();
   }
   coverPos(s) { if (!s) return 100; if (s.attributes.current_position != null) return s.attributes.current_position; return s.state === 'closed' ? 0 : 100; }
+  isOn(s) { return !!s && !['off', 'unavailable', 'unknown', 'standby', 'idle', 'closed'].includes(s.state); }
+  /* Kurzer Zustandstext, z. B. „An · 70 %“ */
+  stateLabel(eid, kind) {
+    const s = this.hass?.states[eid]; if (!s) return ''; const d = eid.split('.')[0], a = s.attributes || {};
+    if (s.state === 'unavailable') return T('Nicht verfügbar', 'Unavailable');
+    if (d === 'light') return s.state === 'on' ? (a.brightness != null ? `${T('An', 'On')} · ${Math.round(a.brightness / 2.55)} %` : T('An', 'On')) : T('Aus', 'Off');
+    if (d === 'cover') { const p = this.coverPos(s); return p === 0 ? T('Geschlossen', 'Closed') : p === 100 ? T('Offen', 'Open') : `${p} % ${T('offen', 'open')}`; }
+    if (d === 'lock') return s.state === 'locked' ? T('Verriegelt', 'Locked') : s.state === 'unlocked' ? T('Entriegelt', 'Unlocked') : s.state;
+    if (d === 'media_player') return this.isOn(s) ? (a.media_title || (s.state === 'playing' ? T('Spielt', 'Playing') : T('An', 'On'))) : T('Aus', 'Off');
+    if (d === 'climate') return a.current_temperature != null ? `${fmtNum(+a.current_temperature, 1)} °C` : s.state;
+    if (d === 'sensor') { const v = parseFloat(s.state); return (isNaN(v) ? s.state : fmtNum(v, Number.isInteger(v) ? 0 : 1)) + (a.unit_of_measurement ? ' ' + a.unit_of_measurement : ''); }
+    if (d === 'binary_sensor') { const k = kind || hbEntKind(this.hass, eid); return k === 'motion' ? (s.state === 'on' ? T('Bewegung', 'Motion') : T('Ruhig', 'Clear')) : (s.state === 'on' ? T('Offen', 'Open') : T('Zu', 'Closed')); }
+    return s.state === 'on' ? T('An', 'On') : s.state === 'off' ? T('Aus', 'Off') : s.state;
+  }
+  /* Was hinter einem angetippten Objekt im Modell steckt */
+  target(key) {
+    const [t, id] = key.split(':'), p = this.plan; let eid = '', of = '';
+    if (t === 'dev') { const d = p.devices.find(x => x.id === id); eid = d?.entity; of = d?.kind; }
+    else if (t === 'item') { const it = p.items.find(x => x.id === id); eid = it?.entity; of = it?.kind; }
+    else if (t === 'op') { const o = p.openings.find(x => x.id === id); eid = o?.entity || o?.contact; of = o?.type; }
+    if (!eid || !this.hass?.states[eid]) return null;
+    const d = eid.split('.')[0];
+    return { key, t, id, eid, d, of, kind: hbEntKind(this.hass, eid) || (d === 'binary_sensor' ? (of === 'motion' ? 'motion' : 'contact') : d === 'sensor' ? 'value' : 'ctl') };
+  }
+  /* Direkt schalten nur, wo ein versehentliches Tippen nichts anrichtet */
+  canToggle(x) {
+    if (this.config.tap_action === 'details') return false;
+    if (['light', 'media_player', 'fan', 'input_boolean', 'cover'].includes(x.d)) return true;
+    return x.d === 'switch' && ((x.t === 'dev' && x.of !== 'sensor' && x.of !== 'motion') || (x.t === 'item' && x.of === 'fireplace'));
+  }
+  objTap(cx, cy, details) {
+    const hit = this.sc?.pickAt(cx, cy), x = hit?.key ? this.target(hit.key) : null;
+    if (x) { if (details || !this.canToggle(x)) this.openPop(x, cx, cy); else this.quickToggle(x, hit.point); return; }
+    if (this.pop) { this.closePop(); return; }
+    if (hit?.room) this.go(hit.room);
+  }
+  quickToggle(x, point) {
+    const s = this.hass.states[x.eid], data = { entity_id: x.eid }, nm = this.name(x.eid);
+    let svc = 'toggle', back = 'toggle', msg;
+    if (x.d === 'cover') { const open = this.coverPos(s) > 0; svc = open ? 'close_cover' : 'open_cover'; back = open ? 'open_cover' : 'close_cover'; msg = open ? T(`${nm} fährt zu`, `${nm} closing`) : T(`${nm} fährt auf`, `${nm} opening`); }
+    else { const on = this.isOn(s); if (x.d === 'media_player') { svc = on ? 'turn_off' : 'turn_on'; back = on ? 'turn_on' : 'turn_off'; } msg = on ? `${nm} ${T('aus', 'off')}` : `${nm} ${T('an', 'on')}`; }
+    this.call(x.d, svc, data); this.sc.ping(point, x.d === 'light' || x.of === 'fireplace' ? '#ffc98a' : '#7ef0ff');
+    this.toastMsg(msg, () => this.call(x.d, back, data));
+  }
+  openPop(x, cx, cy) { const r = this.el.hb.getBoundingClientRect(); this.pop = { x, cx: cx - r.left, cy: cy - r.top }; this.hideTip(); this.renderPop(); }
+  closePop() { this.pop = null; this.el.pop.hidden = true; this.el.pop.innerHTML = ''; }
+  renderPop() {
+    const P = this.el.pop, p = this.pop; if (!p) return;
+    const room = this.plan.rooms.find(r => this.ents(r).some(c => c.eid === p.x.eid));
+    P.innerHTML = `<div class="poph">${room ? `<button type="button" class="lnk" data-act="room" data-room="${room.id}">${HB_ICON[room.type] || HB_ICON.sonst}${esc(room.name)}</button>` : '<span></span>'}<button type="button" class="icb" data-act="popclose" aria-label="${T('Schließen', 'Close')}">${HB_ICON.close}</button></div>${this.card({ eid: p.x.eid, d: p.x.d, kind: p.x.kind }, true)}`;
+    P.hidden = false;
+    const W = this.el.hb.clientWidth, H = this.el.hb.clientHeight, pw = P.offsetWidth, ph = P.offsetHeight;
+    let left = p.cx + 16, top = p.cy - ph / 2; if (left + pw > W - 8) left = p.cx - pw - 16;
+    P.style.left = clamp(left, 8, Math.max(8, W - pw - 8)) + 'px'; P.style.top = clamp(top, 8, Math.max(8, H - ph - 8)) + 'px';
+  }
+  showTip(x, cx, cy) {
+    const r = this.el.hb.getBoundingClientRect(), el = this.el.tip;
+    el.innerHTML = `<b>${esc(this.name(x.eid))}</b><span>${esc(this.stateLabel(x.eid, x.kind))}</span><small>${this.canToggle(x) ? T('Tippen schaltet · Rechtsklick: mehr', 'Click toggles · right-click: more') : T('Klicken für Steuerung', 'Click for controls')}</small>`;
+    el.hidden = false; el.style.transform = `translate(${Math.round(cx - r.left + 14)}px,${Math.round(cy - r.top + 14)}px)`;
+  }
+  hideTip() { if (!this.el.tip.hidden) this.el.tip.hidden = true; }
+  toastMsg(msg, undo) {
+    const el = this.el.toast; el.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button type="button" data-act="undo">${T('Rückgängig', 'Undo')}</button>` : ''}`;
+    el.hidden = false; this._undo = undo; clearTimeout(this._tt); this._tt = setTimeout(() => this.hideToast(), 4500);
+  }
+  hideToast() { clearTimeout(this._tt); this.el.toast.hidden = true; this._undo = null; }
+  /* Temperatur-Ansicht: Böden nach Raumtemperatur einfärben */
+  applyHeat() {
+    const reg = this.sc?.reg(), on = this.viewMode === 'temp'; this.el.legend.hidden = !on; if (!reg) return;
+    for (const r of this.plan.rooms) { const info = reg.rooms.get(r.id)?.heat; if (!info) continue; const t = on && this.hass ? this.roomSensors(r).temp : null; info.target = t ? 1 : 0; if (t) info.mat.color.set(hbHeatColor(t.v)); }
+  }
   applyNight() {
     if (!this.sc) return;
     let n; if (this.nightMode === 'night') n = 1; else if (this.nightMode === 'day') n = 0;
@@ -1222,7 +1413,7 @@ class HBViewer {
     if (!this.plan?.rooms.length) return;
     this.rebuildIfNeeded(false); this.applyStates(); this.applyNight();
     const sig = this.stateSig();
-    if (sig !== this.panelSig && Date.now() - this.interact > 1200) { this.panelSig = sig; this.renderPanel(false); this.renderNav(); }
+    if (sig !== this.panelSig && Date.now() - this.interact > 1200) { this.panelSig = sig; this.renderPanel(false); this.renderNav(); if (this.pop) this.renderPop(); }
   }
   stateSig() {
     const h = this.hass; if (!h) return '';
@@ -1252,6 +1443,7 @@ class HBViewer {
   viewOverview(dur) { const reg = this.sc?.reg(); if (!reg) return; this.lastFit = [this.view?.aw || 0, this.view?.ah || 0]; this.sc.flyTo(null, this.overviewDist(0.78, 0.3), 0.78, 0.3, dur); }
   viewRoom(id, dur) { const info = this.sc?.reg()?.rooms.get(id); if (!info) return; this.sc.flyTo(info.center, Math.max(4.6, this.fit(Math.max(1.9, info.radius * 1.12))), this.wallsLow() ? 0.66 : 0.5, null, dur); }
   go(id) {
+    this.closePop();
     if (id === this.focus && id) return;
     this.focus = id; this.applyWalls();
     if (id) this.viewRoom(id); else this.viewOverview();
@@ -1285,8 +1477,9 @@ class HBViewer {
       rooms.map(r => `<button class="nb${this.hass && this.roomLit(r) ? ' lit' : ''}" type="button" data-room="${r.id}" aria-label="${esc(r.name)}" title="${esc(r.name)}">${HB_ICON[r.type] || HB_ICON.sonst}<span class="t">${esc(r.name)}</span></button>`).join('');
     const box = this.el.labels; box.innerHTML = ''; this.labels = {};
     for (const r of rooms) {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = r.name;
-      b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : '') + (this.hass && this.roomMotion(r) ? ' move' : '') + (this.hass && this.roomOpen(r).length ? ' warn' : '');
+      const b = document.createElement('button'); b.type = 'button'; const tt = this.viewMode === 'temp' && this.hass ? this.roomSensors(r).temp : null;
+      b.textContent = tt ? `${r.name} · ${fmtNum(tt.v, 1)}°` : r.name; if (tt) b.style.setProperty('--heat', hbHeatColor(tt.v));
+      b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : '') + (this.hass && this.roomMotion(r) ? ' move' : '') + (this.hass && this.roomOpen(r).length ? ' warn' : '') + (tt ? ' heat' : '');
       b.addEventListener('click', () => this.go(r.id)); b.addEventListener('pointerenter', () => { this.hover = r.id; }); b.addEventListener('pointerleave', () => { if (this.hover === r.id) this.hover = null; });
       box.appendChild(b); this.labels[r.id] = b;
     }
@@ -1299,7 +1492,11 @@ class HBViewer {
     this.el.night.innerHTML = `${ni}<span class="t">${nl}</span>`; this.el.night.setAttribute('aria-label', T('Tag/Nacht: ', 'Day/night: ') + nl);
     const wl = { auto: T('Auto', 'Auto'), hoch: T('Hoch', 'High'), niedrig: T('Niedrig', 'Low') }[this.wallsMode];
     this.el.walls.innerHTML = `${HB_ICON.walls}<span class="t">${T('Wände', 'Walls')}: ${wl}</span>`; this.el.walls.setAttribute('aria-label', T('Wandhöhe: ', 'Wall height: ') + wl);
+    const vt = this.viewMode === 'temp'; this.el.view.classList.toggle('on', vt); this.el.view.setAttribute('aria-pressed', String(vt));
+    this.el.view.innerHTML = `${HB_ICON.thermo}<span class="t">${vt ? T('Temperatur', 'Temperature') : T('Ansicht', 'View')}</span>`; this.el.view.setAttribute('aria-label', T('Temperatur-Ansicht', 'Temperature view'));
   }
+  /* Eigenes Bild eines Geräts (im Editor hochgeladen) */
+  img(eid) { const u = this.plan?.icons?.[eid]; return u ? `<img src="${esc(u)}" alt="" draggable="false">` : ''; }
   name(eid) { return this.hass?.states[eid]?.attributes.friendly_name || eid; }
   card(c) {
     const s = this.hass.states[c.eid], d = c.d, na = !s || s.state === 'unavailable';
@@ -1328,12 +1525,24 @@ class HBViewer {
       if (tg != null) body = `<div class="clim"><button type="button" class="icb" data-act="temp" data-d="-0.5" data-e="${c.eid}" aria-label="${T('Kälter', 'Cooler')}">${HB_ICON.minus}</button><strong>${fmtNum(+tg, 1)}<small> °C</small></strong><button type="button" class="icb" data-act="temp" data-d="0.5" data-e="${c.eid}" aria-label="${T('Wärmer', 'Warmer')}">${HB_ICON.plus}</button></div>`;
     } else {
       icon = d === 'media_player' ? HB_ICON.tv : d === 'fan' ? HB_ICON.fan : HB_ICON.power;
-      on = !!s && !['off', 'unavailable', 'unknown', 'standby'].includes(s.state);
-      sub = d === 'media_player' && on ? (s.attributes.media_title ? esc(s.attributes.media_title) : esc(s.state)) : on ? T('An', 'On') : T('Aus', 'Off');
-      ctl = sw(on); if (d === 'fan' && on) cls += ' spin';
+      if (d === 'sensor' || d === 'binary_sensor') {
+        const k = c.kind || hbEntKind(this.hass, c.eid); icon = k === 'temp' ? HB_ICON.thermo : k === 'hum' ? HB_ICON.drop : k === 'motion' ? HB_ICON.motion : k === 'contact' ? HB_ICON.contact : HB_ICON.sensor;
+        on = d === 'binary_sensor' && s?.state === 'on'; if (on) cls = k === 'contact' ? 'warn' : 'move'; sub = esc(this.stateLabel(c.eid, k));
+      } else {
+        on = !!s && !['off', 'unavailable', 'unknown', 'standby'].includes(s.state);
+        sub = d === 'media_player' && on ? (s.attributes.media_title ? esc(s.attributes.media_title) : esc(s.state)) : on ? T('An', 'On') : T('Aus', 'Off');
+        ctl = sw(on); if (d === 'fan' && on) cls += ' spin';
+        if (d === 'media_player' && on && s) {
+          const sf = s.attributes.supported_features ?? 0xffff, playing = s.state === 'playing';
+          const mb = (svc, ic, lab, cls2 = '') => `<button type="button" class="icb ${cls2}" data-act="media" data-s="${svc}" data-e="${c.eid}" aria-label="${lab}">${ic}</button>`;
+          body = `<div class="mctl">${sf & 16 ? mb('media_previous_track', HB_ICON.prev, T('Zurück', 'Previous')) : ''}${mb('media_play_pause', playing ? HB_ICON.pause : HB_ICON.play, playing ? T('Pause', 'Pause') : T('Abspielen', 'Play'), 'big')}${sf & 32 ? mb('media_next_track', HB_ICON.next, T('Weiter', 'Next')) : ''}</div>`;
+          if (s.attributes.volume_level != null && (sf & 4)) body += rng('volume', Math.round(s.attributes.volume_level * 100), T('Lautstärke', 'Volume'));
+        }
+      }
     }
     if (na) sub = T('Nicht verfügbar', 'Unavailable');
-    return `<div class="dev ${cls}${on ? ' on' : ''}${na ? ' na' : ''}"><div class="dh"><span class="di">${icon}</span><div class="dt"><b>${nm}</b><small>${sub}</small></div>${ctl}</div>${body}</div>`;
+    const img = this.img(c.eid);
+    return `<div class="dev ${cls}${on ? ' on' : ''}${na ? ' na' : ''}"><div class="dh"><span class="di${img ? ' pic' : ''}">${img || icon}</span><div class="dt"><b>${nm}</b><small>${sub}</small></div>${ctl}</div>${body}</div>`;
   }
   renderPanel(animate) {
     const P = this.el.panel, h = this.hass, rooms = this.plan.rooms; let html = '';
@@ -1345,12 +1554,25 @@ class HBViewer {
       const area = rooms.filter(r => !r.outdoor).reduce((s, r) => s + Math.abs(polyArea(r.pts)), 0);
       const contacts = h ? rooms.flatMap(r => this.ents(r).filter(c => c.kind === 'contact')) : [], openN = new Set(contacts.filter(c => h.states[c.eid]?.state === 'on').map(c => c.eid)).size;
       html += head(HB_ICON.home, this.config.title || this.plan.name, `${rooms.length} ${T('Räume', 'rooms')} · ≈ ${Math.round(area)} m²`);
-      const st = [`<div class="stat lamp"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></div>`];
-      st.push(temps.length ? `<div class="stat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></div>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`);
-      if (ls) st.push(`<div class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></div>`);
-      if (contacts.length) st.push(`<div class="stat ${openN ? 'warn' : 'ok'}"><span>${T('Fenster & Türen', 'Windows & doors')}</span><b>${openN ? `${openN} ${T('offen', 'open')}` : T('Alle zu', 'All shut')}</b></div>`);
+      const st = [`<button type="button" class="stat lamp" data-act="jump" data-to="sActive"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></button>`];
+      st.push(temps.length ? `<button type="button" class="stat" data-act="heat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></button>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`);
+      if (ls) st.push(`<button type="button" class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}" data-act="room" data-room="${rooms.find(r => this.controls(r).some(c => c.eid === lock.eid))?.id || ''}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></button>`);
+      if (contacts.length) st.push(`<button type="button" class="stat ${openN ? 'warn' : 'ok'}" data-act="jump" data-to="sOpen"><span>${T('Fenster & Türen', 'Windows & doors')}</span><b>${openN ? `${openN} ${T('offen', 'open')}` : T('Alle zu', 'All shut')}</b></button>`);
       const sun = h?.states['sun.sun']; if (sun) st.push(`<div class="stat"><span>${T('Sonne', 'Sun')}</span><b>${sun.state === 'above_horizon' ? T('Tag', 'Day') : T('Nacht', 'Night')}</b></div>`);
       html += `<div class="stats">${st.slice(0, 4).join('')}</div>`;
+      /* Was gerade an ist */
+      if (h) {
+        const act = [], seen = new Set();
+        for (const r of rooms) for (const c of this.controls(r)) { if (seen.has(c.eid) || !['light', 'switch', 'input_boolean', 'fan', 'media_player'].includes(c.d)) continue; const s = h.states[c.eid]; const isOn = c.d === 'media_player' ? this.isOn(s) : s?.state === 'on'; if (isOn) { seen.add(c.eid); act.push({ c, r }); } }
+        const litIds = act.filter(a => a.c.d === 'light').map(a => a.c.eid), max = this.showAllActive ? 99 : 5;
+        html += `<div class="sect" id="sActive"><h3>${T('Gerade an', 'On right now')}${act.length ? ` <em>${act.length}</em>` : ''}</h3>`;
+        html += act.length ? `<div class="acts">${act.slice(0, max).map(({ c, r }) => `<div class="actr${c.d === 'light' ? ' light' : ''}"><span class="ai${this.img(c.eid) ? ' pic' : ''}">${this.img(c.eid) || (c.d === 'light' ? HB_ICON.bulb : c.d === 'media_player' ? HB_ICON.tv : c.d === 'fan' ? HB_ICON.fan : HB_ICON.power)}</span><button type="button" class="at" data-act="room" data-room="${r.id}"><b>${esc(this.name(c.eid))}</b><small>${esc(r.name)} · ${esc(this.stateLabel(c.eid))}</small></button><button type="button" class="sw" role="switch" aria-checked="true" aria-label="${esc(this.name(c.eid))}" data-act="toggle" data-e="${c.eid}"></button></div>`).join('')}</div>` +
+          `<div class="actb">${act.length > max ? `<button type="button" class="btn" data-act="more">+ ${act.length - max} ${T('weitere', 'more')}</button>` : ''}${litIds.length ? `<button type="button" class="btn lampb" data-act="alloff" data-ids="${litIds.join(',')}">${HB_ICON.allOff}${T('Alle Lichter aus', 'All lights off')}</button>` : ''}</div>`
+          : `<p class="note">${T('Alles aus – gerade läuft nichts.', 'Everything is off right now.')}</p>`;
+        html += `</div>`;
+        const openL = []; const so = new Set(); for (const r of rooms) for (const c of this.roomOpen(r)) if (!so.has(c.eid)) { so.add(c.eid); openL.push({ c, r }); }
+        if (openL.length) html += `<div class="sect" id="sOpen"><h3>${T('Offen', 'Open')} <em class="w">${openL.length}</em></h3><div class="rlist">${openL.map(({ c, r }) => `<button type="button" class="rr warn" data-act="room" data-room="${r.id}">${HB_ICON.contact}<b>${esc(this.name(c.eid))}</b><span>${esc(r.name)}</span><i></i></button>`).join('')}</div></div>`;
+      }
       const scenes = h ? Object.keys(h.states).filter(e => e.startsWith('scene.')).slice(0, 6) : [];
       if (scenes.length) html += `<div class="sect"><h3>${T('Szenen', 'Scenes')}</h3><div class="scenes">${scenes.map(e => `<button type="button" class="scene" data-act="scene" data-e="${e}">${HB_ICON.scene}<span>${esc(this.name(e))}</span></button>`).join('')}</div></div>`;
       html += `<div class="sect"><h3>${T('Räume', 'Rooms')}</h3><div class="rlist">${rooms.map(r => { const t = h ? this.roomSensors(r).temp : null, mv = h && this.roomMotion(r), op = h ? this.roomOpen(r).length : 0; return `<button type="button" class="rr" data-act="room" data-room="${r.id}">${HB_ICON[r.type] || HB_ICON.sonst}<b>${esc(r.name)}</b><span>${op ? `<em class="w" title="${T('Offen', 'Open')}">${HB_ICON.contact}</em>` : ''}${mv ? `<em class="m" title="${T('Bewegung', 'Motion')}">${HB_ICON.motion}</em>` : ''}${t ? fmtNum(t.v, 1) + ' °C' : ''}</span><i class="${h && this.roomLit(r) ? 'lit' : ''}"></i></button>`; }).join('')}</div></div>`;
@@ -1365,6 +1587,8 @@ class HBViewer {
         h && this.roomMotion(r) ? `<span class="chip move">${HB_ICON.motion}${T('Bewegung', 'Motion')}</span>` : '',
         open.length ? `<span class="chip warn">${HB_ICON.contact}${open.length === 1 ? esc(this.name(open[0].eid)) + ' ' + T('offen', 'open') : open.length + ' ' + T('offen', 'open')}</span>` : ''].join('');
       if (chips) html += `<div class="chips">${chips}</div>`;
+      const rl = ctl.filter(c => c.d === 'light');
+      if (rl.length >= 2) { const anyOn = rl.some(c => h.states[c.eid]?.state === 'on'); html += `<button type="button" class="btn wide roomall${anyOn ? ' lampb' : ''}" data-act="roomlights" data-s="${anyOn ? 'turn_off' : 'turn_on'}" data-ids="${rl.map(c => c.eid).join(',')}">${anyOn ? HB_ICON.allOff : HB_ICON.bulb}${anyOn ? T('Alle Lichter im Raum aus', 'All lights in this room off') : T('Alle Lichter im Raum an', 'All lights in this room on')}</button>`; }
       html += ctl.length ? `<div class="devs">${ctl.map(c => this.card(c)).join('')}</div>` : `<p class="note">${T('Diesem Raum sind noch keine Geräte zugeordnet. Verknüpfe ihn im Grundriss-Editor mit einem <b>Bereich</b> aus Home Assistant oder setze Lampen mit Entität.', 'No devices in this room yet. Link it to a Home Assistant <b>area</b> in the floor plan editor or place lights with an entity.')}</p>`;
     }
     P.innerHTML = html; P.classList.toggle('min', this.panelMin);
@@ -1372,13 +1596,26 @@ class HBViewer {
     this.panelSig = this.stateSig();
     requestAnimationFrame(() => this.layout());
   }
-  call(domain, service, data) { if (!this.hass) return; this.interact = 0; this.hass.callService(domain, service, data); }
+  call(domain, service, data) { if (!this.hass) return; this.interact = 0; try { navigator.vibrate?.(8); } catch (e) {} this.hass.callService(domain, service, data); }
   onPanelClick(e) {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const act = b.dataset.act, eid = b.dataset.e, dom = eid ? eid.split('.')[0] : '';
     if (act === 'overview') return this.go(null);
-    if (act === 'room') return this.go(b.dataset.room);
+    if (act === 'room') return b.dataset.room ? this.go(b.dataset.room) : undefined;
     if (act === 'min') { this.panelMin = !this.panelMin; return this.renderPanel(false); }
+    if (act === 'popclose') return this.closePop();
+    if (act === 'more') { this.showAllActive = true; return this.renderPanel(false); }
+    if (act === 'jump') { if (this.panelMin) { this.panelMin = false; this.renderPanel(false); } return this.el.panel.querySelector('#' + b.dataset.to)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (act === 'heat') { this.viewMode = 'temp'; this.applyHeat(); this.renderNav(); return this.syncChrome(); }
+    if (act === 'alloff' || act === 'roomlights') {
+      const ids = (b.dataset.ids || '').split(',').filter(Boolean), svc = act === 'alloff' ? 'turn_off' : b.dataset.s; if (!ids.length) return;
+      const was = ids.filter(i => this.hass.states[i]?.state === 'on');
+      this.call('light', svc, { entity_id: ids });
+      if (svc === 'turn_off' && was.length) this.toastMsg(T(`${was.length} ${was.length === 1 ? 'Licht' : 'Lichter'} aus`, `${was.length} light${was.length === 1 ? '' : 's'} off`), () => this.call('light', 'turn_on', { entity_id: was }));
+      else if (svc === 'turn_on') this.toastMsg(T('Lichter an', 'Lights on'), () => this.call('light', 'turn_off', { entity_id: ids.filter(i => !was.includes(i)) }));
+      return;
+    }
+    if (act === 'media') return this.call('media_player', b.dataset.s, { entity_id: eid });
     if (act === 'scene') return this.call('scene', 'turn_on', { entity_id: eid });
     if (act === 'toggle') { const on = b.getAttribute('aria-checked') === 'true'; b.setAttribute('aria-checked', String(!on)); const svc = dom === 'media_player' || dom === 'fan' || dom === 'light' || dom === 'switch' || dom === 'input_boolean' ? (on ? 'turn_off' : 'turn_on') : 'toggle'; return this.call(dom, svc, { entity_id: eid }); }
     if (act === 'color') { const hx = b.dataset.c, rgb = [1, 3, 5].map(i => parseInt(hx.slice(i, i + 2), 16)); return this.call('light', 'turn_on', { entity_id: eid, rgb_color: rgb }); }
@@ -1391,6 +1628,7 @@ class HBViewer {
     const eid = t.dataset.e, v = +t.value;
     if (t.dataset.k === 'brightness') this.call('light', v > 0 ? 'turn_on' : 'turn_off', v > 0 ? { entity_id: eid, brightness_pct: v } : { entity_id: eid });
     if (t.dataset.k === 'position') this.call('cover', 'set_cover_position', { entity_id: eid, position: v });
+    if (t.dataset.k === 'volume') this.call('media_player', 'volume_set', { entity_id: eid, volume_level: v / 100 });
   }
 }
 
@@ -1488,12 +1726,21 @@ textarea.inp{height:150px;padding:10px;font:400 11px/1.45 var(--hb-mono);resize:
 .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(4,6,12,.66)}
 .dlg{width:min(560px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:18px;background:#0f1324;border:1px solid var(--hb-line2)}
 .dlg h2{margin:0;font-weight:700;font-size:17px}.dlg p{margin:0;color:var(--hb-muted);font-size:13px}
+.eall{display:grid;grid-template-columns:1fr 1fr;gap:6px}.eall .btn{min-width:0;justify-content:center;gap:5px;padding:0 6px;font-size:11.5px}.eall .btn svg{width:14px;height:14px}
 .hint2{margin:0;font-size:12px;color:var(--hb-muted)}
 .lnk{border:0;background:none;padding:0;color:var(--hb-accent);font-weight:600;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .elist{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--hb-line2) transparent}
-.er{display:grid;grid-template-columns:28px minmax(0,1fr) 30px;align-items:center;gap:8px;padding:5px 5px 5px 7px;border-radius:10px;background:#141a2e;border:1px solid transparent}
-.er .ei{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:rgba(126,240,255,.08);color:var(--hb-accent)}
-.er .ei svg{width:16px;height:16px}
+.er{display:grid;grid-template-columns:12px 28px minmax(0,1fr) 30px;align-items:center;gap:7px;padding:5px 5px 5px 4px;border-radius:10px;background:#141a2e;border:1px solid transparent}
+.grip{display:grid;place-items:center;height:28px;color:var(--hb-faint);cursor:grab;touch-action:none}.grip svg{width:8px;height:14px;fill:currentColor}.grip:hover{color:var(--hb-fg)}
+.er.drag{border-color:var(--hb-accent);background:#1b2240;box-shadow:0 8px 22px rgba(0,0,0,.45);position:relative;z-index:2}.er.drag .grip{cursor:grabbing}
+.eiw{position:relative;display:grid}
+.ei{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px dashed transparent;padding:0;background:rgba(126,240,255,.08);color:var(--hb-accent);cursor:pointer;overflow:hidden}
+.ei:hover{border-color:rgba(126,240,255,.6)}
+.ei svg{width:16px;height:16px}.ei img{width:100%;height:100%;object-fit:contain}
+.ei.pic{background:rgba(255,255,255,.07)}
+.eix{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;border:1px solid var(--hb-line2);background:#0f1324;color:var(--hb-fg);font:700 11px/1 var(--hb-font);display:grid;place-items:center;padding:0;cursor:pointer}
+.eix:hover{color:#ff7a8a;border-color:#ff7a8a}
+.picrow{display:flex;align-items:center;gap:12px}.picrow .ei{width:52px;height:52px;border-radius:12px;border-style:dashed;border-color:var(--hb-line2)}.picrow .ei svg{width:24px;height:24px}
 .er .et{min-width:0;display:flex;flex-direction:column}
 .er .et b{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .er .et small{font:500 10.5px/1.4 var(--hb-mono);color:var(--hb-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1628,7 +1875,7 @@ function hbCreatePlanner(root, opts) {
       <aside class="card right" id="right" aria-live="polite"></aside>
     </div>
     <div class="ghostDrag" id="ghostDrag" hidden></div><div class="modal" id="modal" hidden></div><div class="toast" id="toast" hidden></div>
-    <input type="file" id="fileImg" accept="image/*" hidden><input type="file" id="fileJson" accept=".json,application/json,text/plain" hidden>
+    <input type="file" id="fileImg" accept="image/*" hidden><input type="file" id="fileJson" accept=".json,application/json,text/plain" hidden><input type="file" id="fileIcon" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden>
   </div>`;
 
   /* ---------- Zustand ---------- */
@@ -1993,6 +2240,30 @@ function hbCreatePlanner(root, opts) {
     if (c.kind === 'temp') return HB_ICON.thermo; if (c.kind === 'hum') return HB_ICON.drop; if (c.kind === 'motion') return HB_ICON.motion; if (c.kind === 'contact') return HB_ICON.contact; if (c.kind === 'value') return HB_ICON.sensor;
     return { light: HB_ICON.bulb, cover: HB_ICON.blinds, media_player: HB_ICON.tv, lock: HB_ICON.lock, climate: HB_ICON.thermo, fan: HB_ICON.fan }[c.d] || HB_ICON.power;
   }
+  /* Symbol oder eigenes Bild – antippen zum Ändern */
+  function iconBtn(eid, fallback) {
+    const u = plan.icons?.[eid];
+    return `<span class="eiw"><button type="button" class="ei${u ? ' pic' : ''}" data-act="eimg" data-e="${esc(eid)}" title="${u ? T('Anderes Bild wählen', 'Choose another picture') : T('Eigenes Bild wählen (z. B. ein Foto deiner Lampe)', 'Choose your own picture (e.g. a photo of your lamp)')}" aria-label="${T('Bild für', 'Picture for')} ${esc(fname(eid))}">${u ? `<img src="${esc(u)}" alt="">` : fallback}</button>${u ? `<button type="button" class="eix" data-act="eimgdel" data-e="${esc(eid)}" title="${T('Bild entfernen', 'Remove picture')}" aria-label="${T('Bild entfernen', 'Remove picture')}">×</button>` : ''}</span>`;
+  }
+  let iconFor = null;
+  function pickIcon(eid) { iconFor = eid; $('#fileIcon').click(); }
+  on($('#fileIcon'), 'change', e => {
+    const file = e.target.files[0], eid = iconFor; e.target.value = ''; iconFor = null; if (!file || !eid) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const S = 128, nw = img.naturalWidth || S, nh = img.naturalHeight || S, k = Math.min(1, S / Math.max(nw, nh)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(nw * k)); c.height = Math.max(1, Math.round(nh * k)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        let url = c.toDataURL('image/webp', 0.9); if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+        plan.icons = { ...(plan.icons || {}), [eid]: url }; commit(true);
+        toast(T(`Bild für ${fname(eid)} gesetzt.`, `Picture set for ${fname(eid)}.`));
+      };
+      img.onerror = () => toast(T('Das Bild konnte nicht gelesen werden.', 'The picture could not be read.'));
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
   /* Geräteliste eines Raums: ein-/ausblenden und Geräte aus anderen Bereichen dazunehmen */
   function roomDevicesHTML(r) {
     let h = `<div class="sec"><h3>${T('Geräte in diesem Raum', 'Devices in this room')}</h3>`;
@@ -2000,18 +2271,19 @@ function hbCreatePlanner(root, opts) {
     const ents = hbRoomEntities(plan, r, hass), hid = new Set(r.hide || []), SRC = { dev: T('im Plan', 'in plan'), item: T('Möbel', 'furniture'), op: T('Tür/Fenster', 'door/window'), add: T('hinzugefügt', 'added'), area: T('Bereich', 'area') };
     if (ents.length) {
       const shown = ents.filter(c => !hid.has(c.eid)).length;
-      h += `<p class="hint2">${shown} ${T('von', 'of')} ${ents.length} ${T('werden in der Karte angezeigt', 'shown on the card')}${hid.size ? ` · <button type="button" class="lnk" data-act="eshowall">${T('Alle einblenden', 'Show all')}</button>` : ''}</p><div class="elist">`;
+      const hideable = ents.filter(c => c.src !== 'add');
+      h += `<p class="hint2">${shown} ${T('von', 'of')} ${ents.length} ${T('werden in der Karte angezeigt', 'shown on the card')}</p><div class="eall"><button type="button" class="btn small" data-act="eshowall" ${hid.size ? '' : 'disabled'}>${HB_ICON.eye}${T('Alle einblenden', 'Show all')}</button><button type="button" class="btn small" data-act="ehideall" ${hideable.some(c => !hid.has(c.eid)) ? '' : 'disabled'}>${HB_ICON.eyeOff}${T('Alle ausblenden', 'Hide all')}</button></div><div class="elist">`;
       for (const c of ents) {
         const off = hid.has(c.eid);
         const btn = c.src === 'add' ? `<button type="button" class="eb" data-act="eremove" data-e="${esc(c.eid)}" title="${T('Wieder entfernen', 'Remove again')}" aria-label="${T('Entfernen', 'Remove')}: ${esc(fname(c.eid))}">${HB_PIC.x}</button>`
           : `<button type="button" class="eb${off ? '' : ' on'}" data-act="ehide" data-e="${esc(c.eid)}" aria-pressed="${!off}" title="${off ? T('In der Karte einblenden', 'Show on the card') : T('In der Karte ausblenden', 'Hide on the card')}" aria-label="${off ? T('Einblenden', 'Show') : T('Ausblenden', 'Hide')}: ${esc(fname(c.eid))}">${off ? HB_ICON.eyeOff : HB_ICON.eye}</button>`;
-        h += `<div class="er${off ? ' off' : ''}"><span class="ei">${entIcon(c)}</span><span class="et"><b>${esc(fname(c.eid))}</b><small>${esc(c.eid)} · ${SRC[c.src] || ''}</small></span>${btn}</div>`;
+        h += `<div class="er${off ? ' off' : ''}" data-e="${esc(c.eid)}"><span class="grip" data-grip title="${T('Ziehen zum Sortieren', 'Drag to reorder')}" aria-hidden="true"><svg viewBox="0 0 10 16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>${iconBtn(c.eid, entIcon(c))}<span class="et"><b>${esc(fname(c.eid))}</b><small>${esc(c.eid)} · ${SRC[c.src] || ''}</small></span>${btn}</div>`;
       }
       h += `</div>`;
     } else h += `<p class="note">${r.area ? T('In diesem Bereich gibt es keine Geräte, die die Karte anzeigen kann.', 'This area has no devices the card can show.') : T('Wähle oben einen Bereich – dann erscheinen hier seine Geräte.', 'Pick an area above – its devices then appear here.')}</p>`;
     const have = new Set(ents.map(c => c.eid)), cand = Object.keys(hass.states).filter(e => !have.has(e) && /^(light|switch|input_boolean|fan|cover|media_player|lock|climate|sensor|binary_sensor)\./.test(e)).sort();
     h += `<div class="addr"><input class="inp" id="f_eadd" list="dl_eadd" placeholder="${T('Gerät hinzufügen …', 'Add a device …')}" aria-label="${T('Gerät hinzufügen', 'Add a device')}" autocomplete="off"><button type="button" class="btn small" data-act="eadd">${T('Hinzufügen', 'Add')}</button></div>${dlList('dl_eadd', cand)}`;
-    return h + `<p class="note">${T('Mit dem <b>Auge</b> blendest du ein Gerät in der Karte aus. Über <b>Hinzufügen</b> holst du Geräte aus anderen Bereichen in diesen Raum.', 'Use the <b>eye</b> to hide a device on the card. <b>Add</b> brings devices from other areas into this room.')}</p></div>`;
+    return h + `<p class="note">${T('Mit dem <b>Auge</b> blendest du ein Gerät in der Karte aus. An den <b>Punkten</b> links ziehst du es an eine andere Stelle – so ist es auch in der Karte sortiert. Über <b>Hinzufügen</b> holst du Geräte aus anderen Bereichen in diesen Raum.', 'Use the <b>eye</b> to hide a device on the card. Drag the <b>dots</b> on the left to reorder – the card uses the same order. <b>Add</b> brings devices from other areas into this room.')}</p></div>`;
   }
   function renderPanel() {
     let h = '';
@@ -2061,6 +2333,7 @@ function hbCreatePlanner(root, opts) {
       h += inp('entity', d.entity, T('Entität in Home Assistant', 'Home Assistant entity'), 'f_dent', 'text', `placeholder="${dom}.…" list="dl_dev"`) + dl('dl_dev', dom === 'light' ? 'light|switch' : dom);
       if (d.kind === 'motion') h += `<p class="note">${T('Erkennt der Melder Bewegung, pulsiert der Raum im Modell violett. Bewegungsmelder aus dem Bereich des Raums werden auch ohne Symbol erkannt.', 'When the sensor detects motion, the room pulses violet in the model. Motion sensors in the room’s area are detected even without a symbol.')}</p>`;
       if (d.kind === 'light') h += nInp('h', d.h ?? 2.1, T('Höhe der Leuchte (m)', 'Light height (m)'), 'f_dh');
+      if (d.entity) h += `<div class="fld"><label>${T('Bild in der Karte', 'Picture on the card')}</label><div class="picrow">${iconBtn(d.entity, d.kind === 'sensor' ? HB_ICON.thermo : d.kind === 'motion' ? HB_ICON.motion : HB_ICON.bulb)}<span class="hint2">${plan.icons?.[d.entity] ? T('Antippen zum Ändern, × zum Entfernen.', 'Tap to change, × to remove.') : T('Antippen und ein Foto deiner Lampe wählen (PNG mit transparentem Hintergrund sieht am besten aus).', 'Tap and choose a photo of your lamp (PNG with a transparent background looks best).')}</span></div></div>`;
       h += `<div class="acts"><button type="button" class="btn small" data-act="dup">${T('Duplizieren', 'Duplicate')}</button><button type="button" class="btn small danger" data-act="del">${T('Löschen', 'Delete')}</button></div>`;
     } else if (sel.type === 'bg') {
       h += `<div class="ph"><h2>${T('Grundriss-Vorlage', 'Floor plan template')}</h2></div><p class="note">${T('Lade einen Grundriss als Bild, setze den <b>Maßstab</b> über eine bekannte Strecke und zeichne die Räume darüber nach. Das Bild bleibt nur in diesem Browser.', 'Load a floor plan image, set the <b>scale</b> using a known distance and trace the rooms on top. The image stays in this browser only.')}</p>`;
@@ -2113,6 +2386,27 @@ function hbCreatePlanner(root, opts) {
     toast(T(`${fname(e)} wird jetzt in diesem Raum angezeigt.`, `${fname(e)} now shows in this room.`));
   }
   on(right, 'keydown', e => { if (e.target.id === 'f_eadd' && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addEntity(); } });
+  /* Geräte-Reihenfolge per Drag & Drop */
+  let edrag = null;
+  on(right, 'pointerdown', e => {
+    const g = e.target.closest('[data-grip]'); if (!g || e.button !== 0) return;
+    const row = g.closest('.er'); if (!row) return; e.preventDefault();
+    g.setPointerCapture?.(e.pointerId); edrag = { row, list: row.parentElement, id: e.pointerId, start: [...row.parentElement.children].map(x => x.dataset.e).join('|') }; row.classList.add('drag');
+  });
+  on(right, 'pointermove', e => {
+    if (!edrag || e.pointerId !== edrag.id) return;
+    const { row, list } = edrag; let before = null;
+    for (const r of list.children) { if (r === row) continue; const b = r.getBoundingClientRect(); if (e.clientY < b.top + b.height / 2) { before = r; break; } }
+    if (before !== row.nextElementSibling && before !== row) list.insertBefore(row, before);
+    const lb = list.getBoundingClientRect(); if (e.clientY < lb.top + 24) list.scrollTop -= 8; else if (e.clientY > lb.bottom - 24) list.scrollTop += 8;
+  });
+  const endEdrag = e => {
+    if (!edrag || (e && e.pointerId !== edrag.id)) return;
+    const { row, list, start } = edrag; edrag = null; row.classList.remove('drag');
+    const order = [...list.children].map(x => x.dataset.e), o = selObj();
+    if (o && sel?.type === 'room' && order.join('|') !== start) { o.order = order; commit(true); }
+  };
+  on(right, 'pointerup', endEdrag); on(right, 'pointercancel', endEdrag);
   on(right, 'input', e => { if (e.target.dataset.f && (e.target.type === 'range' || e.target.dataset.f === 'name')) applyField(e.target, false); });
   on(right, 'change', e => { if (e.target.dataset.f) applyField(e.target, true); });
   on(right, 'pointerover', e => { const w = e.target.closest('[data-edge]'), nh = w && sel?.type === 'room' ? { room: sel.id, i: +w.dataset.edge } : null; if (JSON.stringify(nh) !== JSON.stringify(hoverEdge)) { hoverEdge = nh; req(4); } });
@@ -2129,8 +2423,11 @@ function hbCreatePlanner(root, opts) {
     if (act === 'wall') { o.wall = b.dataset.c || ''; commit(true); return; }
     if (act === 'ehide') { const e = b.dataset.e, s = new Set(o.hide || []); s.has(e) ? s.delete(e) : s.add(e); o.hide = [...s]; commit(true); return; }
     if (act === 'eshowall') { o.hide = []; commit(true); return; }
+    if (act === 'ehideall') { o.hide = hbRoomEntities(plan, o, hass).filter(c => c.src !== 'add').map(c => c.eid); commit(true); toast(T('Alle ausgeblendet – jetzt mit dem Auge nur die gewünschten Geräte einblenden.', 'All hidden – now use the eye to show just the devices you want.')); return; }
     if (act === 'eremove') { o.add = (o.add || []).filter(x => x !== b.dataset.e); commit(true); return; }
     if (act === 'eadd') return addEntity();
+    if (act === 'eimg') return pickIcon(b.dataset.e);
+    if (act === 'eimgdel') { const ic = { ...(plan.icons || {}) }; delete ic[b.dataset.e]; plan.icons = ic; commit(true); return; }
     if (act === 'flipHinge') { o.flipHinge = !o.flipHinge; commit(); return; }
     if (act === 'flipSide') { o.flipSide = !o.flipSide; commit(); return; }
     if (act === 'rot') { o.rot = ((o.rot + +b.dataset.d) % 360 + 360) % 360; commit(true); return; }
@@ -2273,6 +2570,9 @@ const HB_EDITOR_CSS = `
 .hint{margin:0;font-size:12px;line-height:1.5;color:var(--secondary-text-color,#9097ba)}
 details summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--secondary-text-color,#9097ba)}
 details .fld{margin-top:10px}
+.support{margin:4px 0 0;font-size:12px;text-align:center;color:var(--secondary-text-color,#9097ba)}
+.support a{color:var(--primary-color,#7ef0ff);font-weight:600;text-decoration:none}
+.support a:hover{text-decoration:underline}
 @media (max-width:480px){.grid{grid-template-columns:1fr}}
 `;
 class HomeBoo3DCardEditor extends HTMLElement {
@@ -2290,9 +2590,12 @@ class HomeBoo3DCardEditor extends HTMLElement {
         <div class="fld"><label for="height">${T('Höhe', 'Height')}</label><select id="height" data-k="height">${[['600px', '600 px'], ['480px', '480 px'], ['720px', '720 px'], ['900px', '900 px'], ['full', T('Bildschirmhöhe (Panel)', 'Screen height (panel)')]].map(([v, n]) => `<option value="${v}" ${(c.height || '600px') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="night">${T('Tag und Nacht', 'Day and night')}</label><select id="night" data-k="night">${[['auto', T('Automatisch (Sonnenstand)', 'Automatic (sun)')], ['day', T('Immer Tag', 'Always day')], ['night', T('Immer Nacht', 'Always night')]].map(([v, n]) => `<option value="${v}" ${(c.night || 'auto') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="fld"><label for="accent">${T('Akzentfarbe', 'Accent colour')}</label><input id="accent" type="color" data-k="accent" value="${esc(c.accent || '#7ef0ff')}"></div>
+        <div class="fld"><label for="tap">${T('Antippen im 3D-Modell', 'Tapping in the 3D model')}</label><select id="tap" data-k="tap_action">${[['toggle', T('Schaltet direkt', 'Switches directly')], ['details', T('Öffnet erst die Steuerung', 'Opens the controls first')]].map(([v, n]) => `<option value="${v}" ${(c.tap_action || 'toggle') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="fld"><label for="panel">${T('Seitenleiste beim Start', 'Side panel on start')}</label><select id="panel" data-k="panel">${[['open', T('Aufgeklappt', 'Expanded')], ['collapsed', T('Eingeklappt (z. B. Wand-Tablet)', 'Collapsed (e.g. wall tablet)')]].map(([v, n]) => `<option value="${v}" ${(c.panel || 'open') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       </div>
       <p class="hint">${T('Tipp: Verknüpfe jeden Raum im Editor mit einem Bereich aus Home Assistant. Dann erscheinen dessen Geräte automatisch im Raum.', 'Tip: link each room to a Home Assistant area in the editor. Its devices then appear in the room automatically.')}</p>
       <details><summary>${T('Erweitert', 'Advanced')}</summary><div class="fld"><label for="three">${T('Adresse von three.module.js (für Betrieb ohne Internet)', 'URL of three.module.js (for offline use)')}</label><input id="three" data-k="three_url" value="${esc(c.three_url || '')}" placeholder="${HB_THREE_DEFAULT}"></div></details>
+      <p class="support">${T('Gefällt dir HomeBoo 3D?', 'Enjoying HomeBoo 3D?')} <a href="${HB_SUPPORT_URL}" target="_blank" rel="noopener noreferrer">☕ ${T('Spendier mir einen Kaffee', 'Buy me a coffee')}</a></p>
     </div>`;
     const sr = this.shadowRoot;
     sr.getElementById('openPlanner').addEventListener('click', () => this.openPlanner());
@@ -2301,7 +2604,7 @@ class HomeBoo3DCardEditor extends HTMLElement {
   }
   update(k, v) {
     const c = { ...this._config };
-    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px')) delete c[k]; else c[k] = v;
+    if (v === '' || v == null || (k === 'night' && v === 'auto') || (k === 'accent' && v.toLowerCase() === '#7ef0ff') || (k === 'height' && v === '600px') || (k === 'tap_action' && v === 'toggle') || (k === 'panel' && v === 'open')) delete c[k]; else c[k] = v;
     this._config = c; this.fire();
   }
   fire() { this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true })); }

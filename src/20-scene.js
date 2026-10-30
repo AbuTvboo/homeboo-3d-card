@@ -129,6 +129,11 @@ function hbMakeScene(THREE, canvas) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
   const own = m => { m.userData.own = true; return m; };
+  /* Unsichtbare Trefferflächen, damit kleine Geräte gut anzutippen sind */
+  const HITM = new THREE.MeshBasicMaterial({ visible: false });
+  const hitProxy = (geo, key) => { const m = new THREE.Mesh(geo, HITM); m.userData.hitKey = key; return m; };
+  const RINGTEX = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.strokeStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 14; x.lineWidth = 7; x.beginPath(); x.arc(64, 64, 46, 0, Math.PI * 2); x.stroke(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const pings = [];
 
   /* Abgerundete Quader (eigene Umsetzung, Geometrien werden geteilt) */
   const rbCache = new Map();
@@ -375,6 +380,7 @@ function hbMakeScene(THREE, canvas) {
     let cur = -t / 2;
     for (const x of ops) {
       const o = x.o, w = x.e - x.s, cx = (x.s + x.e) / 2, h = Math.min(o.h, H - 0.05), op = openingPos(plan, o);
+      if (o.entity || o.contact) { const y0 = o.type === 'window' ? Math.min(o.sill, H - 0.3) : 0, hh = o.type === 'window' ? Math.min(h, H - y0 - 0.05) : h, p = hitProxy(new THREE.BoxGeometry(Math.max(0.3, w), Math.max(0.3, hh + 0.2), t + 0.3), 'op:' + o.id); p.position.set(cx, y0 + hh / 2, 0); g.add(p); reg.hits.push(p); }
       piece(cur, x.s, 0, H);
       if (o.type === 'window') { const sill = Math.min(o.sill, H - 0.3), hh = Math.min(h, H - sill - 0.05); piece(x.s, x.e, 0, sill); piece(x.s, x.e, sill + hh, H); glaz(cx, w, sill, hh, false, o); addShutter(o, op, cx, w, sill + hh, hh); }
       else {
@@ -418,7 +424,7 @@ function hbMakeScene(THREE, canvas) {
 
   function build(plan, bo = {}) {
     clear(wallGroup); clear(content);
-    reg = { lights: new Map(), shutters: new Map(), screens: new Map(), locks: new Map(), drums: new Map(), contacts: new Map(), doors: new Map(), fires: new Map(), motionDevs: new Map(), rooms: new Map(), floors: [], bbox: null, radius: 6, center: [0, 0] };
+    reg = { lights: new Map(), shutters: new Map(), screens: new Map(), locks: new Map(), drums: new Map(), contacts: new Map(), doors: new Map(), fires: new Map(), motionDevs: new Map(), rooms: new Map(), floors: [], hits: [], bbox: null, radius: 6, center: [0, 0] };
     let nPL = 0;
     const all = plan.rooms.flatMap(r => r.pts);
     if (!all.length) return reg;
@@ -437,7 +443,8 @@ function hbMakeScene(THREE, canvas) {
       const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(r.pts.map(p => { const q = P3(p); return new THREE.Vector3(q[0], 0.035, q[1]); })), own(new THREE.LineBasicMaterial({ color: '#7ef0ff', transparent: true, opacity: 0 }))); line.renderOrder = 3; content.add(line);
       const c = centroid(r.pts), radius = Math.max(...r.pts.map(p => dist(p, c)));
       const mv = decal(r.pts, c[0], c[1], Math.max(1.6, radius * 1.1)); mv.material.color.set('#9b7bff'); mv.position.y = 0.016; content.add(mv);
-      reg.rooms.set(r.id, { center: c, radius, fill, line, cur: 0, target: 0, poly: r.pts, motion: { mat: mv.material, cur: 0, target: 0 } });
+      const heat = new THREE.Mesh(geo, own(new THREE.MeshBasicMaterial({ color: '#50dc82', transparent: true, opacity: 0, depthWrite: false }))); heat.position.y = 0.026; heat.renderOrder = 2; content.add(heat);
+      reg.rooms.set(r.id, { center: c, radius, fill, line, cur: 0, target: 0, poly: r.pts, motion: { mat: mv.material, cur: 0, target: 0 }, heat: { mat: heat.material, cur: 0, target: 0 } });
     }
     const W = computeWalls(plan);
     for (const pc of W.pieces) buildWall(plan, pc, bo);
@@ -492,6 +499,7 @@ function hbMakeScene(THREE, canvas) {
         default: continue;
       }
       const q = P3([it.x, it.y]); o.position.set(q[0], 0, q[1]); o.rotation.y = -it.rot * DEG; content.add(o);
+      if (it.entity) { o.userData.hitKey = 'item:' + it.id; reg.hits.push(o); }
     }
     const addLight = (key, x, y, h, I, R, poly, mats) => {
       const L = { cur: 0, target: 0, color: new THREE.Color('#ffc78a'), I, pl: null, decals: [], mats: mats || [] };
@@ -502,6 +510,10 @@ function hbMakeScene(THREE, canvas) {
     };
     for (const d of plan.devices) {
       const q = P3([d.x, d.y]);
+      if (d.entity) {
+        const lh = clamp(d.h ?? 2.1, 0.4, plan.wallHeight), px = d.kind === 'lamp' ? hitProxy(new THREE.CylinderGeometry(0.32, 0.32, 1.8, 10), 'dev:' + d.id) : hitProxy(new THREE.SphereGeometry(0.34, 10, 8), 'dev:' + d.id);
+        px.position.set(q[0], d.kind === 'lamp' ? 0.9 : d.kind === 'sensor' ? 1.5 : d.kind === 'motion' ? plan.wallHeight - 0.32 : d.kind === 'spot' ? plan.wallHeight - 0.08 : lh - 0.08, q[1]); content.add(px); reg.hits.push(px);
+      }
       if (d.kind === 'sensor') { content.add(at(rb(0.12, 0.12, 0.04, M.sensor, 0.015), q[0], 1.5, q[1])); continue; }
       if (d.kind === 'motion') {
         const mm = own(std('#f2f2f4', 0.4, 0, { emissive: '#b48cff', emissiveIntensity: 0 })), dome = sph(0.075, mm, 16, 10); dome.scale.y = 0.6;
@@ -546,6 +558,12 @@ function hbMakeScene(THREE, canvas) {
       for (const d of reg.doors.values()) { d.cur += (d.target - d.cur) * k * 0.7; d.pivot.rotation.y = d.open * d.cur; }
       for (const f of reg.fires.values()) { f.cur += (f.target - f.cur) * k * 0.5; f.mat.emissiveIntensity = f.cur * 2.2 * flick; if (f.pl) f.pl.intensity = f.cur * 2.4 * flick * (0.4 + 0.6 * n); }
       for (const m of reg.motionDevs.values()) { m.cur += (m.target - m.cur) * k; m.mat.emissiveIntensity = m.cur * (0.8 + 1.6 * pulse); }
+      for (const r of reg.rooms.values()) { const h = r.heat; if (h) { h.cur += (h.target - h.cur) * k; h.mat.opacity = h.cur * 0.5; } }
+    }
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const q = pings[i]; q.t += Math.max(dt, 0.016); const f = q.t / 0.75;
+      if (f >= 1) { scene.remove(q.s); q.s.material.dispose(); pings.splice(i, 1); continue; }
+      const sc = (0.3 + f * 1.1) * Math.max(0.7, orbit.sph.radius / 14); q.s.scale.set(sc, sc, 1); q.s.material.opacity = (1 - f) * 0.9;
     }
     wallScale += (wallTarget - wallScale) * (1 - Math.exp(-dt * 4)); wallGroup.scale.y = wallScale;
     if (tween) {
@@ -573,6 +591,22 @@ function hbMakeScene(THREE, canvas) {
     if (!reg) return null; const r = canvas.getBoundingClientRect();
     v2.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera);
     const hit = ray.intersectObjects(reg.floors, false)[0]; return hit ? hit.object.userData.room : null;
+  }
+  /* Gerät oder Möbel unter dem Zeiger – nur wenn keine Wand davor steht */
+  const wallHit = o => { while (o && o !== wallGroup) { if (o.userData.hitKey) return false; o = o.parent; } return true; };
+  function pickAt(clientX, clientY) {
+    if (!reg) return null; const r = canvas.getBoundingClientRect();
+    v2.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera);
+    const fl = ray.intersectObjects(reg.floors, false)[0], out = { room: fl ? fl.object.userData.room : null, key: null, point: fl ? fl.point.clone() : null };
+    const hit = reg.hits.length ? ray.intersectObjects(reg.hits, true)[0] : null; if (!hit) return out;
+    let o = hit.object; while (o && !o.userData.hitKey) o = o.parent; if (!o) return out;
+    const wall = ray.intersectObjects(wallGroup.children, true).find(x => x.object.isMesh && x.object.material !== M.glass && x.object.material !== HITM && wallHit(x.object));
+    if (wall && wall.distance < hit.distance - 0.05) return out;
+    out.key = o.userData.hitKey; out.point = hit.point.clone(); return out;
+  }
+  function ping(p, color = '#7ef0ff') {
+    if (!p) return; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: RINGTEX, color, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.position.copy(p); s.renderOrder = 20; scene.add(s); pings.push({ s, t: 0 });
   }
   function project(x, y, h = 0.2) { tmp.set(x - ctr[0], h, y - ctr[1]).project(camera); return { x: (tmp.x + 1) / 2 * canvas.clientWidth, y: (1 - tmp.y) / 2 * canvas.clientHeight, vis: tmp.z < 1 }; }
   function resize(w, h, ox = 0, oy = 0) { if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.setViewOffset(w, h, ox, oy, w, h); camera.updateProjectionMatrix(); }
@@ -604,7 +638,7 @@ function hbMakeScene(THREE, canvas) {
   }
   function dispose() { clear(wallGroup); clear(content); renderer.dispose(); pmrem.dispose(); }
   return {
-    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, project, resize, fitDistance, fitView, loadPicture, dispose, lastUser: () => userAt,
+    THREE, renderer, camera, orbit, build, frame, flyTo, jumpTo, pick, pickAt, ping, project, resize, fitDistance, fitView, loadPicture, dispose, lastUser: () => userAt,
     reg: () => reg, setNight: v => { nightTarget = v; }, setWallsLow: v => { wallTarget = v ? 0.42 : 1; }, wallsLow: () => wallTarget < 1, isFlying: () => !!tween,
   };
 }

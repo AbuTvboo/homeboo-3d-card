@@ -93,12 +93,21 @@ textarea.inp{height:150px;padding:10px;font:400 11px/1.45 var(--hb-mono);resize:
 .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(4,6,12,.66)}
 .dlg{width:min(560px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:18px;background:#0f1324;border:1px solid var(--hb-line2)}
 .dlg h2{margin:0;font-weight:700;font-size:17px}.dlg p{margin:0;color:var(--hb-muted);font-size:13px}
+.eall{display:grid;grid-template-columns:1fr 1fr;gap:6px}.eall .btn{min-width:0;justify-content:center;gap:5px;padding:0 6px;font-size:11.5px}.eall .btn svg{width:14px;height:14px}
 .hint2{margin:0;font-size:12px;color:var(--hb-muted)}
 .lnk{border:0;background:none;padding:0;color:var(--hb-accent);font-weight:600;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .elist{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--hb-line2) transparent}
-.er{display:grid;grid-template-columns:28px minmax(0,1fr) 30px;align-items:center;gap:8px;padding:5px 5px 5px 7px;border-radius:10px;background:#141a2e;border:1px solid transparent}
-.er .ei{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:rgba(126,240,255,.08);color:var(--hb-accent)}
-.er .ei svg{width:16px;height:16px}
+.er{display:grid;grid-template-columns:12px 28px minmax(0,1fr) 30px;align-items:center;gap:7px;padding:5px 5px 5px 4px;border-radius:10px;background:#141a2e;border:1px solid transparent}
+.grip{display:grid;place-items:center;height:28px;color:var(--hb-faint);cursor:grab;touch-action:none}.grip svg{width:8px;height:14px;fill:currentColor}.grip:hover{color:var(--hb-fg)}
+.er.drag{border-color:var(--hb-accent);background:#1b2240;box-shadow:0 8px 22px rgba(0,0,0,.45);position:relative;z-index:2}.er.drag .grip{cursor:grabbing}
+.eiw{position:relative;display:grid}
+.ei{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px dashed transparent;padding:0;background:rgba(126,240,255,.08);color:var(--hb-accent);cursor:pointer;overflow:hidden}
+.ei:hover{border-color:rgba(126,240,255,.6)}
+.ei svg{width:16px;height:16px}.ei img{width:100%;height:100%;object-fit:contain}
+.ei.pic{background:rgba(255,255,255,.07)}
+.eix{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;border:1px solid var(--hb-line2);background:#0f1324;color:var(--hb-fg);font:700 11px/1 var(--hb-font);display:grid;place-items:center;padding:0;cursor:pointer}
+.eix:hover{color:#ff7a8a;border-color:#ff7a8a}
+.picrow{display:flex;align-items:center;gap:12px}.picrow .ei{width:52px;height:52px;border-radius:12px;border-style:dashed;border-color:var(--hb-line2)}.picrow .ei svg{width:24px;height:24px}
 .er .et{min-width:0;display:flex;flex-direction:column}
 .er .et b{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .er .et small{font:500 10.5px/1.4 var(--hb-mono);color:var(--hb-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -233,7 +242,7 @@ function hbCreatePlanner(root, opts) {
       <aside class="card right" id="right" aria-live="polite"></aside>
     </div>
     <div class="ghostDrag" id="ghostDrag" hidden></div><div class="modal" id="modal" hidden></div><div class="toast" id="toast" hidden></div>
-    <input type="file" id="fileImg" accept="image/*" hidden><input type="file" id="fileJson" accept=".json,application/json,text/plain" hidden>
+    <input type="file" id="fileImg" accept="image/*" hidden><input type="file" id="fileJson" accept=".json,application/json,text/plain" hidden><input type="file" id="fileIcon" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden>
   </div>`;
 
   /* ---------- Zustand ---------- */
@@ -598,6 +607,30 @@ function hbCreatePlanner(root, opts) {
     if (c.kind === 'temp') return HB_ICON.thermo; if (c.kind === 'hum') return HB_ICON.drop; if (c.kind === 'motion') return HB_ICON.motion; if (c.kind === 'contact') return HB_ICON.contact; if (c.kind === 'value') return HB_ICON.sensor;
     return { light: HB_ICON.bulb, cover: HB_ICON.blinds, media_player: HB_ICON.tv, lock: HB_ICON.lock, climate: HB_ICON.thermo, fan: HB_ICON.fan }[c.d] || HB_ICON.power;
   }
+  /* Symbol oder eigenes Bild – antippen zum Ändern */
+  function iconBtn(eid, fallback) {
+    const u = plan.icons?.[eid];
+    return `<span class="eiw"><button type="button" class="ei${u ? ' pic' : ''}" data-act="eimg" data-e="${esc(eid)}" title="${u ? T('Anderes Bild wählen', 'Choose another picture') : T('Eigenes Bild wählen (z. B. ein Foto deiner Lampe)', 'Choose your own picture (e.g. a photo of your lamp)')}" aria-label="${T('Bild für', 'Picture for')} ${esc(fname(eid))}">${u ? `<img src="${esc(u)}" alt="">` : fallback}</button>${u ? `<button type="button" class="eix" data-act="eimgdel" data-e="${esc(eid)}" title="${T('Bild entfernen', 'Remove picture')}" aria-label="${T('Bild entfernen', 'Remove picture')}">×</button>` : ''}</span>`;
+  }
+  let iconFor = null;
+  function pickIcon(eid) { iconFor = eid; $('#fileIcon').click(); }
+  on($('#fileIcon'), 'change', e => {
+    const file = e.target.files[0], eid = iconFor; e.target.value = ''; iconFor = null; if (!file || !eid) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const S = 128, nw = img.naturalWidth || S, nh = img.naturalHeight || S, k = Math.min(1, S / Math.max(nw, nh)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(nw * k)); c.height = Math.max(1, Math.round(nh * k)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        let url = c.toDataURL('image/webp', 0.9); if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+        plan.icons = { ...(plan.icons || {}), [eid]: url }; commit(true);
+        toast(T(`Bild für ${fname(eid)} gesetzt.`, `Picture set for ${fname(eid)}.`));
+      };
+      img.onerror = () => toast(T('Das Bild konnte nicht gelesen werden.', 'The picture could not be read.'));
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
   /* Geräteliste eines Raums: ein-/ausblenden und Geräte aus anderen Bereichen dazunehmen */
   function roomDevicesHTML(r) {
     let h = `<div class="sec"><h3>${T('Geräte in diesem Raum', 'Devices in this room')}</h3>`;
@@ -605,18 +638,19 @@ function hbCreatePlanner(root, opts) {
     const ents = hbRoomEntities(plan, r, hass), hid = new Set(r.hide || []), SRC = { dev: T('im Plan', 'in plan'), item: T('Möbel', 'furniture'), op: T('Tür/Fenster', 'door/window'), add: T('hinzugefügt', 'added'), area: T('Bereich', 'area') };
     if (ents.length) {
       const shown = ents.filter(c => !hid.has(c.eid)).length;
-      h += `<p class="hint2">${shown} ${T('von', 'of')} ${ents.length} ${T('werden in der Karte angezeigt', 'shown on the card')}${hid.size ? ` · <button type="button" class="lnk" data-act="eshowall">${T('Alle einblenden', 'Show all')}</button>` : ''}</p><div class="elist">`;
+      const hideable = ents.filter(c => c.src !== 'add');
+      h += `<p class="hint2">${shown} ${T('von', 'of')} ${ents.length} ${T('werden in der Karte angezeigt', 'shown on the card')}</p><div class="eall"><button type="button" class="btn small" data-act="eshowall" ${hid.size ? '' : 'disabled'}>${HB_ICON.eye}${T('Alle einblenden', 'Show all')}</button><button type="button" class="btn small" data-act="ehideall" ${hideable.some(c => !hid.has(c.eid)) ? '' : 'disabled'}>${HB_ICON.eyeOff}${T('Alle ausblenden', 'Hide all')}</button></div><div class="elist">`;
       for (const c of ents) {
         const off = hid.has(c.eid);
         const btn = c.src === 'add' ? `<button type="button" class="eb" data-act="eremove" data-e="${esc(c.eid)}" title="${T('Wieder entfernen', 'Remove again')}" aria-label="${T('Entfernen', 'Remove')}: ${esc(fname(c.eid))}">${HB_PIC.x}</button>`
           : `<button type="button" class="eb${off ? '' : ' on'}" data-act="ehide" data-e="${esc(c.eid)}" aria-pressed="${!off}" title="${off ? T('In der Karte einblenden', 'Show on the card') : T('In der Karte ausblenden', 'Hide on the card')}" aria-label="${off ? T('Einblenden', 'Show') : T('Ausblenden', 'Hide')}: ${esc(fname(c.eid))}">${off ? HB_ICON.eyeOff : HB_ICON.eye}</button>`;
-        h += `<div class="er${off ? ' off' : ''}"><span class="ei">${entIcon(c)}</span><span class="et"><b>${esc(fname(c.eid))}</b><small>${esc(c.eid)} · ${SRC[c.src] || ''}</small></span>${btn}</div>`;
+        h += `<div class="er${off ? ' off' : ''}" data-e="${esc(c.eid)}"><span class="grip" data-grip title="${T('Ziehen zum Sortieren', 'Drag to reorder')}" aria-hidden="true"><svg viewBox="0 0 10 16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>${iconBtn(c.eid, entIcon(c))}<span class="et"><b>${esc(fname(c.eid))}</b><small>${esc(c.eid)} · ${SRC[c.src] || ''}</small></span>${btn}</div>`;
       }
       h += `</div>`;
     } else h += `<p class="note">${r.area ? T('In diesem Bereich gibt es keine Geräte, die die Karte anzeigen kann.', 'This area has no devices the card can show.') : T('Wähle oben einen Bereich – dann erscheinen hier seine Geräte.', 'Pick an area above – its devices then appear here.')}</p>`;
     const have = new Set(ents.map(c => c.eid)), cand = Object.keys(hass.states).filter(e => !have.has(e) && /^(light|switch|input_boolean|fan|cover|media_player|lock|climate|sensor|binary_sensor)\./.test(e)).sort();
     h += `<div class="addr"><input class="inp" id="f_eadd" list="dl_eadd" placeholder="${T('Gerät hinzufügen …', 'Add a device …')}" aria-label="${T('Gerät hinzufügen', 'Add a device')}" autocomplete="off"><button type="button" class="btn small" data-act="eadd">${T('Hinzufügen', 'Add')}</button></div>${dlList('dl_eadd', cand)}`;
-    return h + `<p class="note">${T('Mit dem <b>Auge</b> blendest du ein Gerät in der Karte aus. Über <b>Hinzufügen</b> holst du Geräte aus anderen Bereichen in diesen Raum.', 'Use the <b>eye</b> to hide a device on the card. <b>Add</b> brings devices from other areas into this room.')}</p></div>`;
+    return h + `<p class="note">${T('Mit dem <b>Auge</b> blendest du ein Gerät in der Karte aus. An den <b>Punkten</b> links ziehst du es an eine andere Stelle – so ist es auch in der Karte sortiert. Über <b>Hinzufügen</b> holst du Geräte aus anderen Bereichen in diesen Raum.', 'Use the <b>eye</b> to hide a device on the card. Drag the <b>dots</b> on the left to reorder – the card uses the same order. <b>Add</b> brings devices from other areas into this room.')}</p></div>`;
   }
   function renderPanel() {
     let h = '';
@@ -666,6 +700,7 @@ function hbCreatePlanner(root, opts) {
       h += inp('entity', d.entity, T('Entität in Home Assistant', 'Home Assistant entity'), 'f_dent', 'text', `placeholder="${dom}.…" list="dl_dev"`) + dl('dl_dev', dom === 'light' ? 'light|switch' : dom);
       if (d.kind === 'motion') h += `<p class="note">${T('Erkennt der Melder Bewegung, pulsiert der Raum im Modell violett. Bewegungsmelder aus dem Bereich des Raums werden auch ohne Symbol erkannt.', 'When the sensor detects motion, the room pulses violet in the model. Motion sensors in the room’s area are detected even without a symbol.')}</p>`;
       if (d.kind === 'light') h += nInp('h', d.h ?? 2.1, T('Höhe der Leuchte (m)', 'Light height (m)'), 'f_dh');
+      if (d.entity) h += `<div class="fld"><label>${T('Bild in der Karte', 'Picture on the card')}</label><div class="picrow">${iconBtn(d.entity, d.kind === 'sensor' ? HB_ICON.thermo : d.kind === 'motion' ? HB_ICON.motion : HB_ICON.bulb)}<span class="hint2">${plan.icons?.[d.entity] ? T('Antippen zum Ändern, × zum Entfernen.', 'Tap to change, × to remove.') : T('Antippen und ein Foto deiner Lampe wählen (PNG mit transparentem Hintergrund sieht am besten aus).', 'Tap and choose a photo of your lamp (PNG with a transparent background looks best).')}</span></div></div>`;
       h += `<div class="acts"><button type="button" class="btn small" data-act="dup">${T('Duplizieren', 'Duplicate')}</button><button type="button" class="btn small danger" data-act="del">${T('Löschen', 'Delete')}</button></div>`;
     } else if (sel.type === 'bg') {
       h += `<div class="ph"><h2>${T('Grundriss-Vorlage', 'Floor plan template')}</h2></div><p class="note">${T('Lade einen Grundriss als Bild, setze den <b>Maßstab</b> über eine bekannte Strecke und zeichne die Räume darüber nach. Das Bild bleibt nur in diesem Browser.', 'Load a floor plan image, set the <b>scale</b> using a known distance and trace the rooms on top. The image stays in this browser only.')}</p>`;
@@ -718,6 +753,27 @@ function hbCreatePlanner(root, opts) {
     toast(T(`${fname(e)} wird jetzt in diesem Raum angezeigt.`, `${fname(e)} now shows in this room.`));
   }
   on(right, 'keydown', e => { if (e.target.id === 'f_eadd' && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addEntity(); } });
+  /* Geräte-Reihenfolge per Drag & Drop */
+  let edrag = null;
+  on(right, 'pointerdown', e => {
+    const g = e.target.closest('[data-grip]'); if (!g || e.button !== 0) return;
+    const row = g.closest('.er'); if (!row) return; e.preventDefault();
+    g.setPointerCapture?.(e.pointerId); edrag = { row, list: row.parentElement, id: e.pointerId, start: [...row.parentElement.children].map(x => x.dataset.e).join('|') }; row.classList.add('drag');
+  });
+  on(right, 'pointermove', e => {
+    if (!edrag || e.pointerId !== edrag.id) return;
+    const { row, list } = edrag; let before = null;
+    for (const r of list.children) { if (r === row) continue; const b = r.getBoundingClientRect(); if (e.clientY < b.top + b.height / 2) { before = r; break; } }
+    if (before !== row.nextElementSibling && before !== row) list.insertBefore(row, before);
+    const lb = list.getBoundingClientRect(); if (e.clientY < lb.top + 24) list.scrollTop -= 8; else if (e.clientY > lb.bottom - 24) list.scrollTop += 8;
+  });
+  const endEdrag = e => {
+    if (!edrag || (e && e.pointerId !== edrag.id)) return;
+    const { row, list, start } = edrag; edrag = null; row.classList.remove('drag');
+    const order = [...list.children].map(x => x.dataset.e), o = selObj();
+    if (o && sel?.type === 'room' && order.join('|') !== start) { o.order = order; commit(true); }
+  };
+  on(right, 'pointerup', endEdrag); on(right, 'pointercancel', endEdrag);
   on(right, 'input', e => { if (e.target.dataset.f && (e.target.type === 'range' || e.target.dataset.f === 'name')) applyField(e.target, false); });
   on(right, 'change', e => { if (e.target.dataset.f) applyField(e.target, true); });
   on(right, 'pointerover', e => { const w = e.target.closest('[data-edge]'), nh = w && sel?.type === 'room' ? { room: sel.id, i: +w.dataset.edge } : null; if (JSON.stringify(nh) !== JSON.stringify(hoverEdge)) { hoverEdge = nh; req(4); } });
@@ -734,8 +790,11 @@ function hbCreatePlanner(root, opts) {
     if (act === 'wall') { o.wall = b.dataset.c || ''; commit(true); return; }
     if (act === 'ehide') { const e = b.dataset.e, s = new Set(o.hide || []); s.has(e) ? s.delete(e) : s.add(e); o.hide = [...s]; commit(true); return; }
     if (act === 'eshowall') { o.hide = []; commit(true); return; }
+    if (act === 'ehideall') { o.hide = hbRoomEntities(plan, o, hass).filter(c => c.src !== 'add').map(c => c.eid); commit(true); toast(T('Alle ausgeblendet – jetzt mit dem Auge nur die gewünschten Geräte einblenden.', 'All hidden – now use the eye to show just the devices you want.')); return; }
     if (act === 'eremove') { o.add = (o.add || []).filter(x => x !== b.dataset.e); commit(true); return; }
     if (act === 'eadd') return addEntity();
+    if (act === 'eimg') return pickIcon(b.dataset.e);
+    if (act === 'eimgdel') { const ic = { ...(plan.icons || {}) }; delete ic[b.dataset.e]; plan.icons = ic; commit(true); return; }
     if (act === 'flipHinge') { o.flipHinge = !o.flipHinge; commit(); return; }
     if (act === 'flipSide') { o.flipSide = !o.flipSide; commit(); return; }
     if (act === 'rot') { o.rot = ((o.rot + +b.dataset.d) % 360 + 360) % 360; commit(true); return; }

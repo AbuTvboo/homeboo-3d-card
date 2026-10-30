@@ -42,6 +42,8 @@ Object.assign(HB_ICON, {
   contact: hbIc('M5 21V4h10v17M15 6l4-1.5V21M3 21h18M11.5 12.5h.01'),
   eye: hbIc('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z'),
   eyeOff: hbIc('M3 3l18 18M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8M6.3 7.3A16.5 16.5 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.4-1.1M9.9 10a2.5 2.5 0 0 0 3.6 3.5'),
+  close: hbIc('M6 6l12 12M18 6 6 18'), play: hbIc('M8 5.5v13l10.5-6.5z'), pause: hbIc('M8 5.5v13M16 5.5v13'), prev: hbIc('M18 6v12l-8.5-6zM6 6v12'), next: hbIc('M6 6v12l8.5-6zM18 6v12'),
+  allOff: hbIc('M9 18h6M10 21h4M12 3a6 6 0 0 0-3.8 10.6c.6.5.8 1.2.8 2V16h6v-.4c0-.8.2-1.5.8-2A6 6 0 0 0 12 3zM3 3l18 18'),
   fire: hbIc('M12 21a6 6 0 0 0 6-6c0-3.5-2.5-5.5-3.5-8.5-1 2-2 3-3 3.5C11.5 7.5 10 5 9.5 3 8 6 6 9 6 15a6 6 0 0 0 6 6zM12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z'),
 });
 const HB_OFF = new Set(['off', 'unavailable', 'unknown', 'standby', 'idle', 'closed', 'locked']);
@@ -117,6 +119,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .di svg{width:20px;height:20px}
 .dev.on .di{color:var(--hb-accent);background:var(--hb-accent-soft)}
 .dev.on.light .di{color:var(--hb-lamp);background:rgba(255,201,138,.13);box-shadow:0 0 22px rgba(255,201,138,.22)}
+.di.pic,.ai.pic{background:rgba(255,255,255,.06)!important;overflow:hidden;box-shadow:none!important}
+.di img,.ai img{width:86%;height:86%;object-fit:contain;transition:filter .3s,opacity .3s}
+.dev:not(.on) .di img{filter:grayscale(.75) brightness(.7);opacity:.8}
+.dev.on.light .di img,.actr.light .ai img{filter:drop-shadow(0 0 5px rgba(255,201,138,.85))}
 .dev.spin .di svg{animation:spin 1.2s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .dt{min-width:0}
@@ -172,6 +178,45 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .msg b{color:var(--hb-fg)}
 .swap>*{animation:rise .42s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*45ms)}
 @keyframes rise{from{opacity:0;transform:translateX(-14px)}}
+button.stat{font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .2s,background .2s}
+button.stat:hover{border-color:var(--hb-line2);background:rgba(255,255,255,.05)}
+.tool.on{color:var(--hb-accent);border-color:rgba(126,240,255,.45);background:var(--hb-accent-soft)}
+.lbl.heat::before{background:var(--heat);box-shadow:0 0 9px var(--heat)}
+.sect h3 em{font-style:normal;margin-left:6px;padding:1px 7px;border-radius:99px;background:rgba(255,201,138,.14);color:var(--hb-lamp);letter-spacing:0}
+.sect h3 em.w{background:rgba(255,178,92,.14);color:var(--hb-warn)}
+.acts{display:flex;flex-direction:column;gap:4px}
+.actr{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;padding:6px 8px 6px 6px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--hb-line)}
+.actr .ai{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--hb-accent-soft);color:var(--hb-accent)}
+.actr.light .ai{background:rgba(255,201,138,.13);color:var(--hb-lamp)}
+.actr .ai svg{width:17px;height:17px}
+.at{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;padding:0;text-align:left;cursor:pointer}
+.at b{max-width:100%;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at small{max-width:100%;font-size:11.5px;color:var(--hb-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actb{display:flex;gap:6px;flex-wrap:wrap}.actb .btn{flex:1}
+.btn svg{width:16px;height:16px;flex:none}
+.btn.lampb{color:var(--hb-lamp);border-color:rgba(255,201,138,.35)}
+.roomall{height:38px}
+.rr.warn svg{color:var(--hb-warn)}.rr.warn span{color:var(--hb-warn)}
+.dev.warn{border-color:rgba(255,178,92,.4)}.dev.warn .di{color:var(--hb-warn);background:rgba(255,178,92,.12)}
+.dev.move{border-color:rgba(180,140,255,.4)}.dev.move .di{color:#b48cff;background:rgba(180,140,255,.12)}
+.mctl{display:flex;align-items:center;justify-content:center;gap:10px}
+.mctl .icb.big{width:46px;height:46px;border-radius:50%;color:var(--hb-accent-ink);background:var(--hb-accent);border-color:var(--hb-accent)}
+.mctl .icb.big svg{width:20px;height:20px}
+.tip{position:absolute;left:0;top:0;z-index:5;pointer-events:none;display:flex;flex-direction:column;gap:1px;max-width:240px;padding:8px 11px;border-radius:12px;background:rgba(9,12,24,.9);border:1px solid var(--hb-line2);box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.tip b{font-size:13px;font-weight:600}.tip span{font:500 12px var(--hb-mono);color:var(--hb-accent)}.tip small{margin-top:3px;font-size:10.5px;color:var(--hb-faint)}
+.pop{position:absolute;z-index:6;width:300px;max-width:calc(100% - 16px);display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:16px;background:var(--hb-glass2);border:1px solid var(--hb-line2);box-shadow:0 24px 60px rgba(0,0,0,.5);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);animation:popin .18s ease-out}
+@keyframes popin{from{opacity:0;transform:scale(.96)}}
+.poph{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.poph .icb{width:30px;height:30px}
+.lnk{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:2px 4px;color:var(--hb-muted);font-weight:600;font-size:12px;cursor:pointer}
+.lnk svg{width:15px;height:15px}.lnk:hover{color:var(--hb-accent)}
+.toast{position:absolute;left:50%;bottom:16px;z-index:7;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:8px 8px 8px 14px;border-radius:14px;background:#1a2040;border:1px solid var(--hb-line2);box-shadow:0 12px 34px rgba(0,0,0,.45);font-size:13px;white-space:nowrap;animation:popin .2s ease-out}
+.toast span{overflow:hidden;text-overflow:ellipsis}
+.toast button{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(126,240,255,.4);background:var(--hb-accent-soft);color:var(--hb-accent);font-weight:700;font-size:12.5px;cursor:pointer}
+.legend{position:absolute;right:16px;bottom:16px;z-index:3;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:var(--hb-glass);border:1px solid var(--hb-line);font:500 11px var(--hb-mono);color:var(--hb-muted);pointer-events:none}
+.legend i{width:90px;height:6px;border-radius:99px;background:linear-gradient(90deg,rgb(70,130,255),rgb(40,205,235) 30%,rgb(80,220,130) 50%,rgb(250,205,40) 70%,rgb(245,80,70))}
+.narrow .legend{bottom:auto;top:112px;right:12px}
+.narrow .toast{bottom:auto;top:110px}
 .narrow .top{grid-template-areas:"brand . tools" "nav nav nav";grid-template-columns:auto minmax(0,1fr) auto;gap:8px}
 .narrow .rooms{justify-self:stretch}
 .narrow .tool .t,.narrow .brand span{display:none}
@@ -187,30 +232,55 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 class HBViewer {
   constructor(root) {
     this.root = root; this.config = {}; this.plan = null; this.hass = null; this.sc = null;
-    this.focus = null; this.hover = null; this.nightMode = null; this.wallsMode = 'auto'; this.panelMin = false; this.interact = 0;
+    this.focus = null; this.hover = null; this.nightMode = null; this.wallsMode = 'auto'; this.viewMode = 'normal'; this.panelMin = false; this.interact = 0; this.pop = null; this.showAllActive = false;
     this.sig = ''; this.panelSig = ''; this.buildSig = ''; this.running = false; this.visible = true; this.connected = false;
     root.innerHTML = `<style>${HB_VIEW_CSS}</style><ha-card class="card"><div class="hb"><canvas></canvas><div class="labels"></div>
       <div class="ui"><header class="top"><div class="brand"><span class="ghost">${HB_GHOST}</span><div><b class="ttl"></b><span class="sub"></span></div></div><nav class="rooms"></nav>
-      <div class="tools"><button class="tool" data-t="night" type="button"></button><button class="tool" data-t="walls" type="button"></button></div></header>
-      <div class="stage"><aside class="panel" aria-live="polite"></aside></div></div><div class="msg" hidden></div></div></ha-card>`;
+      <div class="tools"><button class="tool" data-t="view" type="button"></button><button class="tool" data-t="night" type="button"></button><button class="tool" data-t="walls" type="button"></button></div></header>
+      <div class="stage"><aside class="panel" aria-live="polite"></aside></div></div>
+      <div class="legend" hidden><span>16°</span><i></i><span>26°</span></div><div class="tip" hidden></div><div class="pop" role="dialog" hidden></div><div class="toast" role="status" hidden></div>
+      <div class="msg" hidden></div></div></ha-card>`;
     const q = s => root.querySelector(s);
-    this.el = { hb: q('.hb'), canvas: q('canvas'), labels: q('.labels'), nav: q('.rooms'), panel: q('.panel'), top: q('.top'), msg: q('.msg'), ttl: q('.ttl'), sub: q('.sub'), night: q('[data-t=night]'), walls: q('[data-t=walls]') };
+    this.el = { hb: q('.hb'), canvas: q('canvas'), labels: q('.labels'), nav: q('.rooms'), panel: q('.panel'), top: q('.top'), msg: q('.msg'), ttl: q('.ttl'), sub: q('.sub'), night: q('[data-t=night]'), walls: q('[data-t=walls]'), view: q('[data-t=view]'), tip: q('.tip'), pop: q('.pop'), toast: q('.toast'), legend: q('.legend') };
     this.el.nav.addEventListener('click', e => { const b = e.target.closest('.nb'); if (b) this.go(b.dataset.room || null); });
     this.el.night.addEventListener('click', () => { const order = [null, 'night', 'day']; this.nightMode = order[(order.indexOf(this.nightMode) + 1) % 3]; this.applyNight(); this.syncChrome(); });
     this.el.walls.addEventListener('click', () => { this.wallsMode = { auto: 'hoch', hoch: 'niedrig', niedrig: 'auto' }[this.wallsMode]; this.applyWalls(); this.syncChrome(); if (this.focus) this.viewRoom(this.focus, 0.8); });
-    this.el.panel.addEventListener('click', e => this.onPanelClick(e));
-    this.el.panel.addEventListener('input', e => { const t = e.target; if (t.type !== 'range') return; this.interact = Date.now(); t.style.setProperty('--p', t.value + '%'); t.nextElementSibling.textContent = t.value + ' %'; });
-    this.el.panel.addEventListener('change', e => this.onPanelChange(e));
-    this.el.panel.addEventListener('pointerdown', () => { this.interact = Date.now(); });
-    const cv = this.el.canvas; let down = null;
-    cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
-    cv.addEventListener('pointerup', e => { if (!down) return; const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]); down = null; if (moved > 6 || !this.sc) return; const id = this.sc.pick(e.clientX, e.clientY); if (id) this.go(id); });
-    cv.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || e.buttons || !this.sc) return; const id = this.sc.pick(e.clientX, e.clientY); if (id !== this.hover) { this.hover = id; cv.style.cursor = id ? 'pointer' : 'grab'; } });
-    cv.addEventListener('pointerleave', () => { this.hover = null; });
+    this.el.view.addEventListener('click', () => { this.viewMode = this.viewMode === 'temp' ? 'normal' : 'temp'; this.applyHeat(); this.renderNav(); this.syncChrome(); });
+    for (const box of [this.el.panel, this.el.pop]) {
+      box.addEventListener('click', e => this.onPanelClick(e));
+      box.addEventListener('input', e => { const t = e.target; if (t.type !== 'range') return; this.interact = Date.now(); t.style.setProperty('--p', t.value + '%'); t.nextElementSibling.textContent = t.value + ' %'; });
+      box.addEventListener('change', e => this.onPanelChange(e));
+      box.addEventListener('pointerdown', () => { this.interact = Date.now(); });
+    }
+    this.el.toast.addEventListener('click', e => { if (e.target.closest('[data-act=undo]')) { const u = this._undo; this.hideToast(); u?.(); } });
+    this.el.hb.addEventListener('keydown', e => { if (e.key === 'Escape' && this.pop) { e.stopPropagation(); this.closePop(); } });
+    /* Antippen im Modell: kurz = schalten oder Raum öffnen, lang oder Rechtsklick = Steuerung am Gerät */
+    const cv = this.el.canvas; let down = null, lp = null, hoverT = 0;
+    cv.addEventListener('pointerdown', e => {
+      clearTimeout(lp); this.hideTip();
+      down = { x: e.clientX, y: e.clientY, b: e.button, long: false };
+      if (e.button === 0) lp = setTimeout(() => { if (!down || down.moved) return; down.long = true; this.objTap(down.x, down.y, true); }, 520);
+    });
+    cv.addEventListener('pointermove', e => {
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) { down.moved = true; clearTimeout(lp); }
+      if (e.pointerType !== 'mouse' || e.buttons || !this.sc) return;
+      const now = performance.now(); if (now - hoverT < 50) return; hoverT = now;
+      const hit = this.sc.pickAt(e.clientX, e.clientY), x = hit?.key ? this.target(hit.key) : null;
+      if (x) { this.hover = null; cv.style.cursor = 'pointer'; this.showTip(x, e.clientX, e.clientY); return; }
+      this.hideTip(); const id = hit?.room || null; if (id !== this.hover) this.hover = id; cv.style.cursor = id ? 'pointer' : 'grab';
+    });
+    cv.addEventListener('pointerup', e => {
+      clearTimeout(lp); if (!down) return; const d = down; down = null;
+      if (d.long || d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || !this.sc) return;
+      this.objTap(e.clientX, e.clientY, d.b === 2);
+    });
+    cv.addEventListener('pointercancel', () => { clearTimeout(lp); down = null; });
+    cv.addEventListener('pointerleave', () => { this.hover = null; this.hideTip(); });
     this.ro = new ResizeObserver(() => this.layout()); this.ro.observe(this.el.hb);
     if ('IntersectionObserver' in window) { this.io = new IntersectionObserver(es => { this.visible = es.some(x => x.isIntersecting); if (this.visible) this.start(); }); this.io.observe(this.el.hb); }
   }
   setConfig(cfg) {
+    if ((cfg.panel || 'open') !== (this.config.panel || 'open')) this.panelMin = cfg.panel === 'collapsed';
     this.config = cfg;
     const h = cfg.height === 'full' ? 'calc(100vh - var(--header-height, 56px) - 16px)' : (cfg.height || '600px');
     this.el.hb.style.setProperty('--hb-h', h);
@@ -322,8 +392,80 @@ class HBViewer {
     }
     for (const r of p.rooms) { const m = reg.rooms.get(r.id)?.motion; if (m) m.target = this.roomMotion(r) ? 1 : 0; }
     for (const d of p.devices) { if (d.kind !== 'motion') continue; const m = reg.motionDevs?.get(d.id); if (m) m.target = S(d.entity)?.state === 'on' ? 1 : 0; }
+    this.applyHeat();
   }
   coverPos(s) { if (!s) return 100; if (s.attributes.current_position != null) return s.attributes.current_position; return s.state === 'closed' ? 0 : 100; }
+  isOn(s) { return !!s && !['off', 'unavailable', 'unknown', 'standby', 'idle', 'closed'].includes(s.state); }
+  /* Kurzer Zustandstext, z. B. „An · 70 %“ */
+  stateLabel(eid, kind) {
+    const s = this.hass?.states[eid]; if (!s) return ''; const d = eid.split('.')[0], a = s.attributes || {};
+    if (s.state === 'unavailable') return T('Nicht verfügbar', 'Unavailable');
+    if (d === 'light') return s.state === 'on' ? (a.brightness != null ? `${T('An', 'On')} · ${Math.round(a.brightness / 2.55)} %` : T('An', 'On')) : T('Aus', 'Off');
+    if (d === 'cover') { const p = this.coverPos(s); return p === 0 ? T('Geschlossen', 'Closed') : p === 100 ? T('Offen', 'Open') : `${p} % ${T('offen', 'open')}`; }
+    if (d === 'lock') return s.state === 'locked' ? T('Verriegelt', 'Locked') : s.state === 'unlocked' ? T('Entriegelt', 'Unlocked') : s.state;
+    if (d === 'media_player') return this.isOn(s) ? (a.media_title || (s.state === 'playing' ? T('Spielt', 'Playing') : T('An', 'On'))) : T('Aus', 'Off');
+    if (d === 'climate') return a.current_temperature != null ? `${fmtNum(+a.current_temperature, 1)} °C` : s.state;
+    if (d === 'sensor') { const v = parseFloat(s.state); return (isNaN(v) ? s.state : fmtNum(v, Number.isInteger(v) ? 0 : 1)) + (a.unit_of_measurement ? ' ' + a.unit_of_measurement : ''); }
+    if (d === 'binary_sensor') { const k = kind || hbEntKind(this.hass, eid); return k === 'motion' ? (s.state === 'on' ? T('Bewegung', 'Motion') : T('Ruhig', 'Clear')) : (s.state === 'on' ? T('Offen', 'Open') : T('Zu', 'Closed')); }
+    return s.state === 'on' ? T('An', 'On') : s.state === 'off' ? T('Aus', 'Off') : s.state;
+  }
+  /* Was hinter einem angetippten Objekt im Modell steckt */
+  target(key) {
+    const [t, id] = key.split(':'), p = this.plan; let eid = '', of = '';
+    if (t === 'dev') { const d = p.devices.find(x => x.id === id); eid = d?.entity; of = d?.kind; }
+    else if (t === 'item') { const it = p.items.find(x => x.id === id); eid = it?.entity; of = it?.kind; }
+    else if (t === 'op') { const o = p.openings.find(x => x.id === id); eid = o?.entity || o?.contact; of = o?.type; }
+    if (!eid || !this.hass?.states[eid]) return null;
+    const d = eid.split('.')[0];
+    return { key, t, id, eid, d, of, kind: hbEntKind(this.hass, eid) || (d === 'binary_sensor' ? (of === 'motion' ? 'motion' : 'contact') : d === 'sensor' ? 'value' : 'ctl') };
+  }
+  /* Direkt schalten nur, wo ein versehentliches Tippen nichts anrichtet */
+  canToggle(x) {
+    if (this.config.tap_action === 'details') return false;
+    if (['light', 'media_player', 'fan', 'input_boolean', 'cover'].includes(x.d)) return true;
+    return x.d === 'switch' && ((x.t === 'dev' && x.of !== 'sensor' && x.of !== 'motion') || (x.t === 'item' && x.of === 'fireplace'));
+  }
+  objTap(cx, cy, details) {
+    const hit = this.sc?.pickAt(cx, cy), x = hit?.key ? this.target(hit.key) : null;
+    if (x) { if (details || !this.canToggle(x)) this.openPop(x, cx, cy); else this.quickToggle(x, hit.point); return; }
+    if (this.pop) { this.closePop(); return; }
+    if (hit?.room) this.go(hit.room);
+  }
+  quickToggle(x, point) {
+    const s = this.hass.states[x.eid], data = { entity_id: x.eid }, nm = this.name(x.eid);
+    let svc = 'toggle', back = 'toggle', msg;
+    if (x.d === 'cover') { const open = this.coverPos(s) > 0; svc = open ? 'close_cover' : 'open_cover'; back = open ? 'open_cover' : 'close_cover'; msg = open ? T(`${nm} fährt zu`, `${nm} closing`) : T(`${nm} fährt auf`, `${nm} opening`); }
+    else { const on = this.isOn(s); if (x.d === 'media_player') { svc = on ? 'turn_off' : 'turn_on'; back = on ? 'turn_on' : 'turn_off'; } msg = on ? `${nm} ${T('aus', 'off')}` : `${nm} ${T('an', 'on')}`; }
+    this.call(x.d, svc, data); this.sc.ping(point, x.d === 'light' || x.of === 'fireplace' ? '#ffc98a' : '#7ef0ff');
+    this.toastMsg(msg, () => this.call(x.d, back, data));
+  }
+  openPop(x, cx, cy) { const r = this.el.hb.getBoundingClientRect(); this.pop = { x, cx: cx - r.left, cy: cy - r.top }; this.hideTip(); this.renderPop(); }
+  closePop() { this.pop = null; this.el.pop.hidden = true; this.el.pop.innerHTML = ''; }
+  renderPop() {
+    const P = this.el.pop, p = this.pop; if (!p) return;
+    const room = this.plan.rooms.find(r => this.ents(r).some(c => c.eid === p.x.eid));
+    P.innerHTML = `<div class="poph">${room ? `<button type="button" class="lnk" data-act="room" data-room="${room.id}">${HB_ICON[room.type] || HB_ICON.sonst}${esc(room.name)}</button>` : '<span></span>'}<button type="button" class="icb" data-act="popclose" aria-label="${T('Schließen', 'Close')}">${HB_ICON.close}</button></div>${this.card({ eid: p.x.eid, d: p.x.d, kind: p.x.kind }, true)}`;
+    P.hidden = false;
+    const W = this.el.hb.clientWidth, H = this.el.hb.clientHeight, pw = P.offsetWidth, ph = P.offsetHeight;
+    let left = p.cx + 16, top = p.cy - ph / 2; if (left + pw > W - 8) left = p.cx - pw - 16;
+    P.style.left = clamp(left, 8, Math.max(8, W - pw - 8)) + 'px'; P.style.top = clamp(top, 8, Math.max(8, H - ph - 8)) + 'px';
+  }
+  showTip(x, cx, cy) {
+    const r = this.el.hb.getBoundingClientRect(), el = this.el.tip;
+    el.innerHTML = `<b>${esc(this.name(x.eid))}</b><span>${esc(this.stateLabel(x.eid, x.kind))}</span><small>${this.canToggle(x) ? T('Tippen schaltet · Rechtsklick: mehr', 'Click toggles · right-click: more') : T('Klicken für Steuerung', 'Click for controls')}</small>`;
+    el.hidden = false; el.style.transform = `translate(${Math.round(cx - r.left + 14)}px,${Math.round(cy - r.top + 14)}px)`;
+  }
+  hideTip() { if (!this.el.tip.hidden) this.el.tip.hidden = true; }
+  toastMsg(msg, undo) {
+    const el = this.el.toast; el.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button type="button" data-act="undo">${T('Rückgängig', 'Undo')}</button>` : ''}`;
+    el.hidden = false; this._undo = undo; clearTimeout(this._tt); this._tt = setTimeout(() => this.hideToast(), 4500);
+  }
+  hideToast() { clearTimeout(this._tt); this.el.toast.hidden = true; this._undo = null; }
+  /* Temperatur-Ansicht: Böden nach Raumtemperatur einfärben */
+  applyHeat() {
+    const reg = this.sc?.reg(), on = this.viewMode === 'temp'; this.el.legend.hidden = !on; if (!reg) return;
+    for (const r of this.plan.rooms) { const info = reg.rooms.get(r.id)?.heat; if (!info) continue; const t = on && this.hass ? this.roomSensors(r).temp : null; info.target = t ? 1 : 0; if (t) info.mat.color.set(hbHeatColor(t.v)); }
+  }
   applyNight() {
     if (!this.sc) return;
     let n; if (this.nightMode === 'night') n = 1; else if (this.nightMode === 'day') n = 0;
@@ -336,7 +478,7 @@ class HBViewer {
     if (!this.plan?.rooms.length) return;
     this.rebuildIfNeeded(false); this.applyStates(); this.applyNight();
     const sig = this.stateSig();
-    if (sig !== this.panelSig && Date.now() - this.interact > 1200) { this.panelSig = sig; this.renderPanel(false); this.renderNav(); }
+    if (sig !== this.panelSig && Date.now() - this.interact > 1200) { this.panelSig = sig; this.renderPanel(false); this.renderNav(); if (this.pop) this.renderPop(); }
   }
   stateSig() {
     const h = this.hass; if (!h) return '';
@@ -366,6 +508,7 @@ class HBViewer {
   viewOverview(dur) { const reg = this.sc?.reg(); if (!reg) return; this.lastFit = [this.view?.aw || 0, this.view?.ah || 0]; this.sc.flyTo(null, this.overviewDist(0.78, 0.3), 0.78, 0.3, dur); }
   viewRoom(id, dur) { const info = this.sc?.reg()?.rooms.get(id); if (!info) return; this.sc.flyTo(info.center, Math.max(4.6, this.fit(Math.max(1.9, info.radius * 1.12))), this.wallsLow() ? 0.66 : 0.5, null, dur); }
   go(id) {
+    this.closePop();
     if (id === this.focus && id) return;
     this.focus = id; this.applyWalls();
     if (id) this.viewRoom(id); else this.viewOverview();
@@ -399,8 +542,9 @@ class HBViewer {
       rooms.map(r => `<button class="nb${this.hass && this.roomLit(r) ? ' lit' : ''}" type="button" data-room="${r.id}" aria-label="${esc(r.name)}" title="${esc(r.name)}">${HB_ICON[r.type] || HB_ICON.sonst}<span class="t">${esc(r.name)}</span></button>`).join('');
     const box = this.el.labels; box.innerHTML = ''; this.labels = {};
     for (const r of rooms) {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = r.name;
-      b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : '') + (this.hass && this.roomMotion(r) ? ' move' : '') + (this.hass && this.roomOpen(r).length ? ' warn' : '');
+      const b = document.createElement('button'); b.type = 'button'; const tt = this.viewMode === 'temp' && this.hass ? this.roomSensors(r).temp : null;
+      b.textContent = tt ? `${r.name} · ${fmtNum(tt.v, 1)}°` : r.name; if (tt) b.style.setProperty('--heat', hbHeatColor(tt.v));
+      b.className = 'lbl off' + (this.hass && this.roomLit(r) ? ' lit' : '') + (this.hass && this.roomMotion(r) ? ' move' : '') + (this.hass && this.roomOpen(r).length ? ' warn' : '') + (tt ? ' heat' : '');
       b.addEventListener('click', () => this.go(r.id)); b.addEventListener('pointerenter', () => { this.hover = r.id; }); b.addEventListener('pointerleave', () => { if (this.hover === r.id) this.hover = null; });
       box.appendChild(b); this.labels[r.id] = b;
     }
@@ -413,7 +557,11 @@ class HBViewer {
     this.el.night.innerHTML = `${ni}<span class="t">${nl}</span>`; this.el.night.setAttribute('aria-label', T('Tag/Nacht: ', 'Day/night: ') + nl);
     const wl = { auto: T('Auto', 'Auto'), hoch: T('Hoch', 'High'), niedrig: T('Niedrig', 'Low') }[this.wallsMode];
     this.el.walls.innerHTML = `${HB_ICON.walls}<span class="t">${T('Wände', 'Walls')}: ${wl}</span>`; this.el.walls.setAttribute('aria-label', T('Wandhöhe: ', 'Wall height: ') + wl);
+    const vt = this.viewMode === 'temp'; this.el.view.classList.toggle('on', vt); this.el.view.setAttribute('aria-pressed', String(vt));
+    this.el.view.innerHTML = `${HB_ICON.thermo}<span class="t">${vt ? T('Temperatur', 'Temperature') : T('Ansicht', 'View')}</span>`; this.el.view.setAttribute('aria-label', T('Temperatur-Ansicht', 'Temperature view'));
   }
+  /* Eigenes Bild eines Geräts (im Editor hochgeladen) */
+  img(eid) { const u = this.plan?.icons?.[eid]; return u ? `<img src="${esc(u)}" alt="" draggable="false">` : ''; }
   name(eid) { return this.hass?.states[eid]?.attributes.friendly_name || eid; }
   card(c) {
     const s = this.hass.states[c.eid], d = c.d, na = !s || s.state === 'unavailable';
@@ -442,12 +590,24 @@ class HBViewer {
       if (tg != null) body = `<div class="clim"><button type="button" class="icb" data-act="temp" data-d="-0.5" data-e="${c.eid}" aria-label="${T('Kälter', 'Cooler')}">${HB_ICON.minus}</button><strong>${fmtNum(+tg, 1)}<small> °C</small></strong><button type="button" class="icb" data-act="temp" data-d="0.5" data-e="${c.eid}" aria-label="${T('Wärmer', 'Warmer')}">${HB_ICON.plus}</button></div>`;
     } else {
       icon = d === 'media_player' ? HB_ICON.tv : d === 'fan' ? HB_ICON.fan : HB_ICON.power;
-      on = !!s && !['off', 'unavailable', 'unknown', 'standby'].includes(s.state);
-      sub = d === 'media_player' && on ? (s.attributes.media_title ? esc(s.attributes.media_title) : esc(s.state)) : on ? T('An', 'On') : T('Aus', 'Off');
-      ctl = sw(on); if (d === 'fan' && on) cls += ' spin';
+      if (d === 'sensor' || d === 'binary_sensor') {
+        const k = c.kind || hbEntKind(this.hass, c.eid); icon = k === 'temp' ? HB_ICON.thermo : k === 'hum' ? HB_ICON.drop : k === 'motion' ? HB_ICON.motion : k === 'contact' ? HB_ICON.contact : HB_ICON.sensor;
+        on = d === 'binary_sensor' && s?.state === 'on'; if (on) cls = k === 'contact' ? 'warn' : 'move'; sub = esc(this.stateLabel(c.eid, k));
+      } else {
+        on = !!s && !['off', 'unavailable', 'unknown', 'standby'].includes(s.state);
+        sub = d === 'media_player' && on ? (s.attributes.media_title ? esc(s.attributes.media_title) : esc(s.state)) : on ? T('An', 'On') : T('Aus', 'Off');
+        ctl = sw(on); if (d === 'fan' && on) cls += ' spin';
+        if (d === 'media_player' && on && s) {
+          const sf = s.attributes.supported_features ?? 0xffff, playing = s.state === 'playing';
+          const mb = (svc, ic, lab, cls2 = '') => `<button type="button" class="icb ${cls2}" data-act="media" data-s="${svc}" data-e="${c.eid}" aria-label="${lab}">${ic}</button>`;
+          body = `<div class="mctl">${sf & 16 ? mb('media_previous_track', HB_ICON.prev, T('Zurück', 'Previous')) : ''}${mb('media_play_pause', playing ? HB_ICON.pause : HB_ICON.play, playing ? T('Pause', 'Pause') : T('Abspielen', 'Play'), 'big')}${sf & 32 ? mb('media_next_track', HB_ICON.next, T('Weiter', 'Next')) : ''}</div>`;
+          if (s.attributes.volume_level != null && (sf & 4)) body += rng('volume', Math.round(s.attributes.volume_level * 100), T('Lautstärke', 'Volume'));
+        }
+      }
     }
     if (na) sub = T('Nicht verfügbar', 'Unavailable');
-    return `<div class="dev ${cls}${on ? ' on' : ''}${na ? ' na' : ''}"><div class="dh"><span class="di">${icon}</span><div class="dt"><b>${nm}</b><small>${sub}</small></div>${ctl}</div>${body}</div>`;
+    const img = this.img(c.eid);
+    return `<div class="dev ${cls}${on ? ' on' : ''}${na ? ' na' : ''}"><div class="dh"><span class="di${img ? ' pic' : ''}">${img || icon}</span><div class="dt"><b>${nm}</b><small>${sub}</small></div>${ctl}</div>${body}</div>`;
   }
   renderPanel(animate) {
     const P = this.el.panel, h = this.hass, rooms = this.plan.rooms; let html = '';
@@ -459,12 +619,25 @@ class HBViewer {
       const area = rooms.filter(r => !r.outdoor).reduce((s, r) => s + Math.abs(polyArea(r.pts)), 0);
       const contacts = h ? rooms.flatMap(r => this.ents(r).filter(c => c.kind === 'contact')) : [], openN = new Set(contacts.filter(c => h.states[c.eid]?.state === 'on').map(c => c.eid)).size;
       html += head(HB_ICON.home, this.config.title || this.plan.name, `${rooms.length} ${T('Räume', 'rooms')} · ≈ ${Math.round(area)} m²`);
-      const st = [`<div class="stat lamp"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></div>`];
-      st.push(temps.length ? `<div class="stat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></div>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`);
-      if (ls) st.push(`<div class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></div>`);
-      if (contacts.length) st.push(`<div class="stat ${openN ? 'warn' : 'ok'}"><span>${T('Fenster & Türen', 'Windows & doors')}</span><b>${openN ? `${openN} ${T('offen', 'open')}` : T('Alle zu', 'All shut')}</b></div>`);
+      const st = [`<button type="button" class="stat lamp" data-act="jump" data-to="sActive"><span>${T('Lichter an', 'Lights on')}</span><b>${on}<small>/ ${lights.length}</small></b></button>`];
+      st.push(temps.length ? `<button type="button" class="stat" data-act="heat"><span>${T('Innen Ø', 'Inside avg')}</span><b>${fmtNum(temps.reduce((a, b) => a + b, 0) / temps.length, 1)}<small>°C</small></b></button>` : `<div class="stat"><span>${T('Geräte', 'Devices')}</span><b>${all.length}</b></div>`);
+      if (ls) st.push(`<button type="button" class="stat ${ls.state === 'locked' ? 'ok' : 'warn'}" data-act="room" data-room="${rooms.find(r => this.controls(r).some(c => c.eid === lock.eid))?.id || ''}"><span>${esc(this.name(lock.eid))}</span><b>${ls.state === 'locked' ? T('Zu', 'Locked') : T('Offen', 'Open')}</b></button>`);
+      if (contacts.length) st.push(`<button type="button" class="stat ${openN ? 'warn' : 'ok'}" data-act="jump" data-to="sOpen"><span>${T('Fenster & Türen', 'Windows & doors')}</span><b>${openN ? `${openN} ${T('offen', 'open')}` : T('Alle zu', 'All shut')}</b></button>`);
       const sun = h?.states['sun.sun']; if (sun) st.push(`<div class="stat"><span>${T('Sonne', 'Sun')}</span><b>${sun.state === 'above_horizon' ? T('Tag', 'Day') : T('Nacht', 'Night')}</b></div>`);
       html += `<div class="stats">${st.slice(0, 4).join('')}</div>`;
+      /* Was gerade an ist */
+      if (h) {
+        const act = [], seen = new Set();
+        for (const r of rooms) for (const c of this.controls(r)) { if (seen.has(c.eid) || !['light', 'switch', 'input_boolean', 'fan', 'media_player'].includes(c.d)) continue; const s = h.states[c.eid]; const isOn = c.d === 'media_player' ? this.isOn(s) : s?.state === 'on'; if (isOn) { seen.add(c.eid); act.push({ c, r }); } }
+        const litIds = act.filter(a => a.c.d === 'light').map(a => a.c.eid), max = this.showAllActive ? 99 : 5;
+        html += `<div class="sect" id="sActive"><h3>${T('Gerade an', 'On right now')}${act.length ? ` <em>${act.length}</em>` : ''}</h3>`;
+        html += act.length ? `<div class="acts">${act.slice(0, max).map(({ c, r }) => `<div class="actr${c.d === 'light' ? ' light' : ''}"><span class="ai${this.img(c.eid) ? ' pic' : ''}">${this.img(c.eid) || (c.d === 'light' ? HB_ICON.bulb : c.d === 'media_player' ? HB_ICON.tv : c.d === 'fan' ? HB_ICON.fan : HB_ICON.power)}</span><button type="button" class="at" data-act="room" data-room="${r.id}"><b>${esc(this.name(c.eid))}</b><small>${esc(r.name)} · ${esc(this.stateLabel(c.eid))}</small></button><button type="button" class="sw" role="switch" aria-checked="true" aria-label="${esc(this.name(c.eid))}" data-act="toggle" data-e="${c.eid}"></button></div>`).join('')}</div>` +
+          `<div class="actb">${act.length > max ? `<button type="button" class="btn" data-act="more">+ ${act.length - max} ${T('weitere', 'more')}</button>` : ''}${litIds.length ? `<button type="button" class="btn lampb" data-act="alloff" data-ids="${litIds.join(',')}">${HB_ICON.allOff}${T('Alle Lichter aus', 'All lights off')}</button>` : ''}</div>`
+          : `<p class="note">${T('Alles aus – gerade läuft nichts.', 'Everything is off right now.')}</p>`;
+        html += `</div>`;
+        const openL = []; const so = new Set(); for (const r of rooms) for (const c of this.roomOpen(r)) if (!so.has(c.eid)) { so.add(c.eid); openL.push({ c, r }); }
+        if (openL.length) html += `<div class="sect" id="sOpen"><h3>${T('Offen', 'Open')} <em class="w">${openL.length}</em></h3><div class="rlist">${openL.map(({ c, r }) => `<button type="button" class="rr warn" data-act="room" data-room="${r.id}">${HB_ICON.contact}<b>${esc(this.name(c.eid))}</b><span>${esc(r.name)}</span><i></i></button>`).join('')}</div></div>`;
+      }
       const scenes = h ? Object.keys(h.states).filter(e => e.startsWith('scene.')).slice(0, 6) : [];
       if (scenes.length) html += `<div class="sect"><h3>${T('Szenen', 'Scenes')}</h3><div class="scenes">${scenes.map(e => `<button type="button" class="scene" data-act="scene" data-e="${e}">${HB_ICON.scene}<span>${esc(this.name(e))}</span></button>`).join('')}</div></div>`;
       html += `<div class="sect"><h3>${T('Räume', 'Rooms')}</h3><div class="rlist">${rooms.map(r => { const t = h ? this.roomSensors(r).temp : null, mv = h && this.roomMotion(r), op = h ? this.roomOpen(r).length : 0; return `<button type="button" class="rr" data-act="room" data-room="${r.id}">${HB_ICON[r.type] || HB_ICON.sonst}<b>${esc(r.name)}</b><span>${op ? `<em class="w" title="${T('Offen', 'Open')}">${HB_ICON.contact}</em>` : ''}${mv ? `<em class="m" title="${T('Bewegung', 'Motion')}">${HB_ICON.motion}</em>` : ''}${t ? fmtNum(t.v, 1) + ' °C' : ''}</span><i class="${h && this.roomLit(r) ? 'lit' : ''}"></i></button>`; }).join('')}</div></div>`;
@@ -479,6 +652,8 @@ class HBViewer {
         h && this.roomMotion(r) ? `<span class="chip move">${HB_ICON.motion}${T('Bewegung', 'Motion')}</span>` : '',
         open.length ? `<span class="chip warn">${HB_ICON.contact}${open.length === 1 ? esc(this.name(open[0].eid)) + ' ' + T('offen', 'open') : open.length + ' ' + T('offen', 'open')}</span>` : ''].join('');
       if (chips) html += `<div class="chips">${chips}</div>`;
+      const rl = ctl.filter(c => c.d === 'light');
+      if (rl.length >= 2) { const anyOn = rl.some(c => h.states[c.eid]?.state === 'on'); html += `<button type="button" class="btn wide roomall${anyOn ? ' lampb' : ''}" data-act="roomlights" data-s="${anyOn ? 'turn_off' : 'turn_on'}" data-ids="${rl.map(c => c.eid).join(',')}">${anyOn ? HB_ICON.allOff : HB_ICON.bulb}${anyOn ? T('Alle Lichter im Raum aus', 'All lights in this room off') : T('Alle Lichter im Raum an', 'All lights in this room on')}</button>`; }
       html += ctl.length ? `<div class="devs">${ctl.map(c => this.card(c)).join('')}</div>` : `<p class="note">${T('Diesem Raum sind noch keine Geräte zugeordnet. Verknüpfe ihn im Grundriss-Editor mit einem <b>Bereich</b> aus Home Assistant oder setze Lampen mit Entität.', 'No devices in this room yet. Link it to a Home Assistant <b>area</b> in the floor plan editor or place lights with an entity.')}</p>`;
     }
     P.innerHTML = html; P.classList.toggle('min', this.panelMin);
@@ -486,13 +661,26 @@ class HBViewer {
     this.panelSig = this.stateSig();
     requestAnimationFrame(() => this.layout());
   }
-  call(domain, service, data) { if (!this.hass) return; this.interact = 0; this.hass.callService(domain, service, data); }
+  call(domain, service, data) { if (!this.hass) return; this.interact = 0; try { navigator.vibrate?.(8); } catch (e) {} this.hass.callService(domain, service, data); }
   onPanelClick(e) {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const act = b.dataset.act, eid = b.dataset.e, dom = eid ? eid.split('.')[0] : '';
     if (act === 'overview') return this.go(null);
-    if (act === 'room') return this.go(b.dataset.room);
+    if (act === 'room') return b.dataset.room ? this.go(b.dataset.room) : undefined;
     if (act === 'min') { this.panelMin = !this.panelMin; return this.renderPanel(false); }
+    if (act === 'popclose') return this.closePop();
+    if (act === 'more') { this.showAllActive = true; return this.renderPanel(false); }
+    if (act === 'jump') { if (this.panelMin) { this.panelMin = false; this.renderPanel(false); } return this.el.panel.querySelector('#' + b.dataset.to)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (act === 'heat') { this.viewMode = 'temp'; this.applyHeat(); this.renderNav(); return this.syncChrome(); }
+    if (act === 'alloff' || act === 'roomlights') {
+      const ids = (b.dataset.ids || '').split(',').filter(Boolean), svc = act === 'alloff' ? 'turn_off' : b.dataset.s; if (!ids.length) return;
+      const was = ids.filter(i => this.hass.states[i]?.state === 'on');
+      this.call('light', svc, { entity_id: ids });
+      if (svc === 'turn_off' && was.length) this.toastMsg(T(`${was.length} ${was.length === 1 ? 'Licht' : 'Lichter'} aus`, `${was.length} light${was.length === 1 ? '' : 's'} off`), () => this.call('light', 'turn_on', { entity_id: was }));
+      else if (svc === 'turn_on') this.toastMsg(T('Lichter an', 'Lights on'), () => this.call('light', 'turn_off', { entity_id: ids.filter(i => !was.includes(i)) }));
+      return;
+    }
+    if (act === 'media') return this.call('media_player', b.dataset.s, { entity_id: eid });
     if (act === 'scene') return this.call('scene', 'turn_on', { entity_id: eid });
     if (act === 'toggle') { const on = b.getAttribute('aria-checked') === 'true'; b.setAttribute('aria-checked', String(!on)); const svc = dom === 'media_player' || dom === 'fan' || dom === 'light' || dom === 'switch' || dom === 'input_boolean' ? (on ? 'turn_off' : 'turn_on') : 'toggle'; return this.call(dom, svc, { entity_id: eid }); }
     if (act === 'color') { const hx = b.dataset.c, rgb = [1, 3, 5].map(i => parseInt(hx.slice(i, i + 2), 16)); return this.call('light', 'turn_on', { entity_id: eid, rgb_color: rgb }); }
@@ -505,5 +693,6 @@ class HBViewer {
     const eid = t.dataset.e, v = +t.value;
     if (t.dataset.k === 'brightness') this.call('light', v > 0 ? 'turn_on' : 'turn_off', v > 0 ? { entity_id: eid, brightness_pct: v } : { entity_id: eid });
     if (t.dataset.k === 'position') this.call('cover', 'set_cover_position', { entity_id: eid, position: v });
+    if (t.dataset.k === 'volume') this.call('media_player', 'volume_set', { entity_id: eid, volume_level: v / 100 });
   }
 }

@@ -1,5 +1,6 @@
 /*! HomeBoo 3D Card | MIT License */
-const HB_VERSION = '0.2.0';
+const HB_VERSION = '0.3.1';
+const HB_SUPPORT_URL = 'https://paypal.me/sebagueven';
 const HB_THREE_DEFAULT = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const hbThreeCache = new Map();
 function hbLoadThree(url) {
@@ -131,7 +132,20 @@ function hbRoomEntities(plan, room, hass) {
   for (const o of plan.openings) if (o.room === room.id) { if (o.entity) push(o.entity, 'op'); if (o.contact) push(o.contact, 'op', 'contact'); }
   for (const e of room.add || []) push(e, 'add');
   for (const e of hbAreaEntities(room, hass)) push(e, 'area');
-  return out;
+  return hbSortEnts(out, room.order);
+}
+/* Eigene Reihenfolge aus dem Editor; nicht einsortierte Geräte folgen in ihrer natürlichen Reihenfolge */
+function hbSortEnts(list, order) {
+  if (!order?.length) return list;
+  const ix = new Map(order.map((e, i) => [e, i]));
+  return list.map((c, i) => [c, ix.has(c.eid) ? ix.get(c.eid) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+}
+/* Farbskala für die Temperatur-Ansicht */
+const HB_HEAT = [[16, [70, 130, 255]], [19, [40, 205, 235]], [21, [80, 220, 130]], [23, [250, 205, 40]], [26, [245, 80, 70]]];
+function hbHeatColor(t) {
+  if (t <= HB_HEAT[0][0]) return `rgb(${HB_HEAT[0][1].join(',')})`;
+  for (let i = 0; i < HB_HEAT.length - 1; i++) { const [t0, c0] = HB_HEAT[i], [t1, c1] = HB_HEAT[i + 1]; if (t <= t1) { const f = (t - t0) / (t1 - t0); return `rgb(${c0.map((v, k) => Math.round(v + (c1[k] - v) * f)).join(',')})`; } }
+  return `rgb(${HB_HEAT[HB_HEAT.length - 1][1].join(',')})`;
 }
 
 /* ---------- Plan ---------- */
@@ -141,10 +155,11 @@ function normalizePlan(p) {
   if (!p || typeof p !== 'object') return e;
   const out = { ...e, ...p };
   const strs = a => Array.isArray(a) ? [...new Set(a.filter(x => typeof x === 'string' && x.includes('.')))] : [];
-  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', wall: /^#[0-9a-f]{6}$/i.test(r.wall || '') ? r.wall : '', hide: strs(r.hide), add: strs(r.add), open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
+  out.rooms = (Array.isArray(p.rooms) ? p.rooms : []).filter(r => Array.isArray(r.pts) && r.pts.length >= 3).map(r => ({ id: r.id || uid('r'), name: r.name || '', type: r.type || 'sonst', floor: FLOORS[r.floor] ? r.floor : 'ash', outdoor: !!r.outdoor, area: r.area || '', wall: /^#[0-9a-f]{6}$/i.test(r.wall || '') ? r.wall : '', hide: strs(r.hide), add: strs(r.add), order: strs(r.order), open: Array.isArray(r.open) ? r.open : [], pts: r.pts.map(q => [+q[0], +q[1]]) }));
   out.openings = (Array.isArray(p.openings) ? p.openings : []).filter(o => OPDEF[o.type]).map(o => ({ id: o.id || uid('o'), flipHinge: false, flipSide: false, entity: '', contact: '', sill: OPDEF[o.type].sill ?? 0, h: OPDEF[o.type].h, w: OPDEF[o.type].w, ...o }));
   out.items = (Array.isArray(p.items) ? p.items : []).filter(i => CAT[i.kind]).map(i => ({ id: i.id || uid('i'), rot: 0, w: CAT[i.kind].w, d: CAT[i.kind].d, ...i }));
   out.devices = (Array.isArray(p.devices) ? p.devices : []).filter(d => DEVDEF[d.kind]).map(d => ({ id: d.id || uid('d'), name: '', entity: '', ...d }));
+  out.icons = Object.fromEntries(Object.entries(p.icons && typeof p.icons === 'object' ? p.icons : {}).filter(([k, v]) => k.includes('.') && typeof v === 'string' && v.length < 400000 && /^(data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]|\/|https?:\/\/)/.test(v)));
   out.wallHeight = clamp(+out.wallHeight || 2.55, 2, 4);
   delete out.bg;
   return out;
